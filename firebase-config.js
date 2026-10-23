@@ -25,4 +25,4 @@ self.FIREBASE_CONFIG = {
 */
 
 // Ключ для push-уведомлений: Project settings → Cloud Messaging → Web Push certificates → Key pair.
-self.FIREBASE_VAPID_KEY = '';
+self.FIREBASE_VAPID_KEY = 'BGhk3hNJPnD3tIR5Ca6lhIeIyVQsbRUVkVb-nvUwLccKqdFWXrMj5ASWC4SPgGPOM36kzGGvyd0El4NJcAue4cU';
