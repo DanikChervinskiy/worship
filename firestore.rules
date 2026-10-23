@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Правила доступа к базе команды прославления.
+// Вставьте этот файл целиком: Firebase Console → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function rolesDoc() { return /databases/$(database)/documents/meta/roles; }
+    function isLeader() { return signedIn() && exists(rolesDoc()) && me() in get(rolesDoc()).data.leaders; }
+    function isMember() { return signedIn() && (exists(/databases/$(database)/documents/access/$(me())) || isLeader()); }
+
+    // Список лидеров. Первый вошедший может назначить себя, дальше меняют только лидеры.
+    match /meta/roles {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.leaders == [me()];
+      allow update: if isLeader() && request.resource.data.leaders.size() > 0;
+    }
+
+    // Кому открыт доступ (и кто он в списке служителей). Выдаёт только лидер.
+    match /access/{uid} {
+      allow read: if isMember() || (signedIn() && me() == uid);
+      allow write: if isLeader();
+    }
+
+    // Заявки на вход: каждый пишет свою, лидер читает и удаляет.
+    match /requests/{uid} {
+      allow read: if isLeader() || (signedIn() && me() == uid);
+      allow create, update: if signedIn() && me() == uid;
+      allow delete: if isLeader() || (signedIn() && me() == uid);
+    }
+
+    // Общие данные: читает команда, меняет лидер.
+    match /songs/{id}    { allow read: if isMember(); allow write: if isLeader(); }
+    match /services/{id} { allow read: if isMember(); allow write: if isLeader(); }
+    match /events/{id}   { allow read: if isMember(); allow write: if isLeader(); }
+    match /members/{id}  { allow read: if isMember(); allow write: if isLeader(); }
+    match /feed/{id}     { allow read: if isMember(); allow write: if isLeader(); }
+    match /lessons/{id}  { allow read: if isMember(); allow write: if isLeader(); }
+    match /warmups/{id}  { allow read: if isMember(); allow write: if isLeader(); }
+
+    // Задачи: создаёт лидер, отмечать пункты может вся команда.
+    match /tasks/{id} {
+      allow read: if isMember();
+      allow create: if isLeader();
+      allow update: if isLeader() || (isMember() && !('deleted' in request.resource.data));
+      allow delete: if isLeader();
+    }
+
+    // Предложенные песни: предлагает любой участник, менять может автор или лидер.
+    match /suggestions/{id} {
+      allow read: if isMember();
+      allow create: if isLeader() || (isMember() && request.resource.data.by == me());
+      allow update: if isLeader() || (isMember() && resource.data.by == me());
+      allow delete: if isLeader();
+    }
+
+    // Свои отметки доступности и голоса: читает команда, пишет только владелец.
+    match /avail/{uid} { allow read: if isMember(); allow write: if isMember() && me() == uid; }
+    match /votes/{uid} { allow read: if isMember(); allow write: if isMember() && me() == uid; }
+
+    // Конспекты и отзывы: видит автор и лидер.
+    match /notes/{uid}    { allow read: if isLeader() || (isMember() && me() == uid); allow write: if isMember() && me() == uid; }
+    match /feedback/{uid} { allow read: if isLeader() || (isMember() && me() == uid); allow write: if isMember() && me() == uid; }
+
+    // Адреса для push-уведомлений: только свои. Рассылку делает сервер (GitHub Actions).
+    match /tokens/{uid} { allow read, write: if signedIn() && me() == uid; }
+
+    // Служебные отметки рассылки — только сервер.
+    match /reminders/{id} { allow read, write: if false; }
+  }
+}
