@@ -14,6 +14,7 @@ import * as Warmups from './views/warmups.js';
 import * as Feedback from './views/feedback.js';
 import * as Profile from './views/profile.js';
 import * as Auth from './views/auth.js';
+import { initPullToRefresh } from './pull.js';
 
 window.__wtBooted = true;
 
@@ -125,6 +126,7 @@ onChange(() => {
 });
 render('top');
 init();
+initPullToRefresh();
 
 // Офлайн-режим и push: сервис-воркер (работает на настоящем хостинге, например GitHub Pages).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

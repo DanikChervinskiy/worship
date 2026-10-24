@@ -40,7 +40,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: contain; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -435,6 +435,22 @@ input[type="checkbox"]:checked::after { content: ""; width: 10px; height: 6px; b
 .tab[aria-current="page"]::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
 .tab span { display: none; }
 .tab-plus { justify-self: center; width: 60px; height: 60px; margin-top: -30px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; box-shadow: 0 0 0 6px var(--bg), 0 8px 20px rgba(0, 0, 0, .2); }
+
+/* ——— потянуть, чтобы обновить ——— */
+.ptr {
+  position: fixed; left: 50%; top: env(safe-area-inset-top, 0px); z-index: 25;
+  transform: translate(-50%, -56px); opacity: 0; pointer-events: none;
+}
+.ptr.back { transition: transform .25s ease, opacity .25s ease; }
+.ptr-knob {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface); color: var(--muted);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .14);
+}
+.ptr.ready .ptr-knob { background: var(--ink); color: var(--bg); }
+.ptr.spin { transition: transform .2s ease; opacity: 1; }
+.ptr.spin .ptr-knob { background: var(--ink); color: var(--bg); animation: spin .8s linear infinite; }
 
 /* ——— toast ——— */
 #toast {
