@@ -1,6 +1,7 @@
 // Распевки перед служением и вокальные упражнения на каждый день.
 import { S, ls, put, del } from '../store.js';
 import { h, icon, run, sheet, field, empty, bar, toast, confirmSheet, linkBtn, safeUrl, seg } from '../ui.js';
+import { can } from '../model.js';
 import { today, addDays, plural } from '../dates.js';
 
 export function warmupList(kind) {
@@ -12,11 +13,11 @@ export function warmupList(kind) {
       h('div.li-t', w.title),
       w.note ? h('div.li-s', { style: { color: 'var(--ink-2)' } }, w.note) : null,
       safeUrl(w.url) ? h('div', linkBtn(safeUrl(w.url), 'Открыть', '.chip.line')) : null),
-    S.isLeader ? h('button.iconbtn.flat', { type: 'button', 'aria-label': 'Изменить', onclick: () => openWarmupEditor(w) }, icon('edit', 18)) : null)));
+    can('tasks') ? h('button.iconbtn.flat', { type: 'button', 'aria-label': 'Изменить', onclick: () => openWarmupEditor(w) }, icon('edit', 18)) : null)));
 }
 
 export function render(el, p, nav) {
-  el.append(bar('Распевки', nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить упражнение', onclick: () => openWarmupEditor() }, icon('plus', 20))] : []));
+  el.append(bar('Распевки', nav, can('tasks') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить упражнение', onclick: () => openWarmupEditor() }, icon('plus', 20))] : []));
 
   const days = ls.get('wt.daily') || [];
   const t = today();

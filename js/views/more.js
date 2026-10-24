@@ -26,5 +26,6 @@ export function render(el, p, nav) {
     item('mic', 'Распевки', 'Перед служением', 'warmups'),
     item('wave', 'Вокальные упражнения', 'Каждый день дома', 'warmups'),
     item('msg', 'Обратная связь', S.isLeader ? 'Ошибки и отзывы команды' : 'Сообщить об ошибке или идее', 'feedback'),
+    S.isLeader ? item('sliders', 'Настройки', 'Права участников: кто что может делать', 'settings') : null,
     item('user', 'Профиль и данные', M.member ? `${M.member.name} · ${M.roles.map(roleLabel).join(', ') || 'без роли'}` : 'Кто я, офлайн-доступ', 'profile')));
 }

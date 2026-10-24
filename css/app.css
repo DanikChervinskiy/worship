@@ -455,6 +455,16 @@ input[type="checkbox"]:checked::after { content: ""; width: 10px; height: 6px; b
 .link-row > :nth-child(3) { grid-area: x; align-self: center; justify-self: center; }
 .link-row input { background: var(--surface); }
 
+/* ——— порядок частей в режиме служения ——— */
+.arr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.arr-v { font-family: var(--f-mono); font-weight: 700; font-size: calc(14px * min(var(--fs, 1), 1.6)); color: var(--ink); }
+
+/* ——— настройки прав ——— */
+.perm-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); cursor: pointer; }
+.perm-row + .perm-row { margin-top: -6px; }
+.perm-row.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.perm-row input:disabled { opacity: .5; }
+
 /* ——— категории ——— */
 .chip.cat { --cat: #8B8D98; }
 .cat-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cat, #8B8D98); flex: none; display: inline-block; }

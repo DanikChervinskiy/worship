@@ -1,7 +1,8 @@
 // Профиль: кто я в команде, уведомления, офлайн, резервная копия, выход.
 import { S, putMine, loadDemo, removeDemo, resetLocal, isCloud, signOutUser, pushSupport, enablePush, exportData, importData, ls } from '../store.js';
 import { h, icon, run, bar, avatar, confirmSheet, toast } from '../ui.js';
-import { me, membersSorted, roleLabel, upcoming, svcSongs } from '../model.js';
+import { me, membersSorted, roleLabel, upcoming, svcSongs, PERM } from '../model.js';
+import { openReset } from './auth.js';
 import { fmt, today } from '../dates.js';
 
 export function render(el, p, nav) {
@@ -21,7 +22,9 @@ export function render(el, p, nav) {
         value: M.memberId || '',
         onchange: e => run(() => putMine('links', { memberId: e.target.value || null, email: (S.user && S.user.email) || '' }), 'Сохранено'),
       }, h('option', { value: '' }, 'Не выбрано'), membersSorted().map(m => h('option', { value: m.id }, m.name)))) : null,
-    !S.isLeader && isCloud() ? h('p.hint', 'Имя и роли меняет лидер в разделе «Команда».') : null));
+    !S.isLeader && S.perms.length ? h('div.chips', h('span.small.muted', 'Ваши права:'), S.perms.map(k => h('span.chip', (PERM[k] || { label: k }).label))) : null,
+    !S.isLeader && isCloud() ? h('p.hint', 'Имя и роли меняет лидер в разделе «Команда».') : null,
+    isCloud() && S.user && S.user.email ? h('button.btn.ghost.sm', { type: 'button', style: { alignSelf: 'flex-start' }, onclick: () => openReset(S.user.email) }, 'Сменить пароль') : null));
 
   // Уведомления
   if (isCloud()) el.append(pushCard(nav));

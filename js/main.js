@@ -14,6 +14,8 @@ import * as Warmups from './views/warmups.js';
 import * as Feedback from './views/feedback.js';
 import * as Profile from './views/profile.js';
 import * as Auth from './views/auth.js';
+import * as Settings from './views/settings.js';
+import { can } from './model.js';
 import { initPullToRefresh } from './pull.js';
 
 window.__wtBooted = true;
@@ -37,7 +39,7 @@ const routes = {
   perform: Perform.render,
   more: More.render, team: Team.render, suggestions: Suggestions.render,
   study: Study.render, lesson: Study.renderLesson, block: Study.renderBlock,
-  tasks: Tasks.render, warmups: Warmups.render, feedback: Feedback.render, profile: Profile.render,
+  tasks: Tasks.render, warmups: Warmups.render, feedback: Feedback.render, profile: Profile.render, settings: Settings.render,
 };
 const TAB_OF = { home: 'home', feed: 'home', schedule: 'schedule', service: 'schedule', event: 'schedule', songs: 'songs', song: 'songs', perform: 'schedule' };
 const TABS = ['home', 'schedule', 'songs', 'more'];
@@ -101,19 +103,21 @@ function renderTabs(active) {
 function quickActions() {
   sheet('Добавить', (b, ctx) => {
     const act = (ic, title, sub, fn) => h('button', { type: 'button', onclick: () => { ctx.close(); fn(); } }, icon(ic, 24), h('div', h('b', title), h('br'), h('small', sub)));
-    const items = S.isLeader ? [
-      act('calendar', 'Служение', 'Песни, состав, репетиция', () => Schedule.openServiceEditor(nav)),
-      act('music', 'Песня', 'Слова, аккорды, партии', () => Songs.openSongEditor(nav)),
-      act('star', 'Событие', 'Конференция, фестиваль', () => Schedule.openEventEditor(nav)),
-      act('bell', 'Уведомление', 'Сообщение всей команде', () => Home.openNotify()),
-      act('list', 'Задача', 'С подзадачами по ролям', () => Tasks.openTaskEditor()),
-      act('book', 'Урок', 'Духовное развитие', () => Study.openLessonEditor()),
-    ] : [
+    const admin = [
+      can('schedule') && act('calendar', 'Служение', 'Песни, состав, репетиция', () => Schedule.openServiceEditor(nav)),
+      can('songs') && act('music', 'Песня', 'Слова, аккорды, партии', () => Songs.openSongEditor(nav)),
+      can('schedule') && act('star', 'Событие', 'Конференция, фестиваль', () => Schedule.openEventEditor(nav)),
+      can('notify') && act('bell', 'Уведомление', 'Сообщение всей команде', () => Home.openNotify()),
+      can('tasks') && act('list', 'Задача', 'С подзадачами по ролям', () => Tasks.openTaskEditor()),
+      can('study') && act('book', 'Урок', 'Духовное развитие', () => Study.openLessonEditor()),
+    ].filter(Boolean);
+    const everyone = [
       act('heart', 'Предложить песню', 'Название и ссылка', () => Suggestions.openSuggest()),
       act('calendar', 'Моя доступность', 'Смогу или не смогу', () => nav.go('schedule')),
       act('msg', 'Обратная связь', 'Ошибка или отзыв', () => nav.push('feedback')),
       act('mic', 'Распевки', 'Перед служением и дома', () => nav.push('warmups')),
     ];
+    const items = admin.length >= 4 ? admin : [...admin, ...everyone].slice(0, Math.max(4, admin.length + 2));
     b.append(h('div.qa', items));
   });
 }

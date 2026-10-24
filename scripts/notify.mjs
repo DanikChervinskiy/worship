@@ -41,10 +41,16 @@ async function send(uids, title, body) {
   for (const u of uids) for (const t of tokens[u] || []) pairs.push([u, t]);
   for (let i = 0; i < pairs.length; i += 500) {
     const chunk = pairs.slice(i, i + 500);
-    const message = { tokens: chunk.map(p => p[1]), notification: { title, body: body || '' } };
+    const message = {
+      tokens: chunk.map(p => p[1]),
+      notification: { title, body: body || '' },
+      // Высокий приоритет: телефон показывает уведомление сразу, а не «пачкой» позже.
+      webpush: { headers: { Urgency: 'high', TTL: String(24 * 3600) } },
+    };
     if (APP_URL) {
       const base = APP_URL.replace(/\/?$/, '/');
-      message.webpush = { fcmOptions: { link: base }, notification: { icon: base + 'icons/icon-192.png' } };
+      message.webpush.fcmOptions = { link: base };
+      message.webpush.notification = { icon: base + 'icons/icon-192.png' };
     }
     const res = await fcm.sendEachForMulticast(message);
     res.responses.forEach((r, k) => {
@@ -77,7 +83,7 @@ const svcSnap = await db.collection('services').where('date', '>=', from).where(
 let remCount = 0;
 for (const d of svcSnap.docs) {
   const s = d.data();
-  if (s.deleted || !s.published) continue;
+  if (s.deleted || !s.published || s.done) continue;
   const team = new Set();
   Object.values(s.team || {}).forEach(arr => (arr || []).forEach(p => p.memberId && team.add(p.memberId)));
   const uids = Object.keys(memberOf).filter(u => team.has(memberOf[u]));

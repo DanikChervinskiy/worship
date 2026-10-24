@@ -1,10 +1,9 @@
 // Главная: ближайшее служение, мои отметки, задачи, лента уведомлений.
-import { S, ls, putMine, loadDemo } from '../store.js';
+import { S, ls, put, putMine, loadDemo } from '../store.js';
 import { h, icon, run, sheet, field, avatar, initials, empty, bar, toast } from '../ui.js';
 import {
   me, upcoming, onTeam, rolesIn, roleLabel, svcSongs, feedFor, myAvail, setAvail, svcTitle,
-  membersSorted, member, service, OPERATORS, recentAvail, notify, memberOfUid, lessonsOnly,
-} from '../model.js';
+  membersSorted, member, service, OPERATORS, recentAvail, notify, memberOfUid, lessonsOnly, can } from '../model.js';
 import { fmt, relDay, daysBetween, today, addDays, plural } from '../dates.js';
 import { openServiceEditor } from './schedule.js';
 import { openProjector } from '../projector.js';
@@ -48,7 +47,7 @@ export function render(el, p, nav) {
   el.append(hero(mineNext || ups[0], M, nav));
 
   // Ответы команды (лидеру)
-  if (S.isLeader) {
+  if (can('schedule')) {
     const rec = recentAvail(5);
     if (rec.length) el.append(h('section.card',
       h('div.card-h', h('h2.h2', 'Ответы команды'), h('span.small.muted', 'доступность')),
@@ -139,12 +138,20 @@ function markAllRead(feed, nav) {
   nav.refresh();
 }
 
+// Служение сегодня и с начала прошло больше двух часов.
+function started(svc) {
+  if (svc.date !== today()) return false;
+  const [hh, mm] = String(svc.time || '23:59').split(':').map(Number);
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() >= hh * 60 + (mm || 0) + 120;
+}
+
 function hero(svc, M, nav) {
   if (!svc) {
     return h('section.hero',
       h('p.hero-k', 'Расписание'),
       h('p.hero-t', 'Ближайших служений пока нет'),
-      M.isLeader
+      can('schedule')
         ? h('div.row', h('button.btn.on-hero', { type: 'button', onclick: () => openServiceEditor(nav) }, icon('plus', 18), 'Добавить служение'))
         : h('p.hero-s', 'Как только расписание составят, оно появится здесь.'));
   }
@@ -161,6 +168,10 @@ function hero(svc, M, nav) {
     (svc.rehearsal || roles.length) ? h('div.chips',
       svc.rehearsal ? h('span.chip', icon('clock', 14), `Репетиция · ${fmt.short(svc.rehearsal.date)}, ${svc.rehearsal.time}`) : null,
       svc.published ? roles.map(r => h('span.chip', roleLabel(r))) : null) : null,
+    started(svc) && can('schedule') ? h('button.btn.on-hero.ghost.sm', {
+      type: 'button', style: { alignSelf: 'flex-start' },
+      onclick: () => run(() => put('services', { ...svc, done: true }, svc.id), 'Отмечено: служение прошло'),
+    }, icon('check', 16, 2.2), 'Служение прошло — убрать') : null,
     h('div.row',
       h('button.btn.on-hero', { type: 'button', disabled: !songs.length, onclick: () => nav.push('perform', { id: svc.id }) }, icon('play', 16), 'Режим служения'),
       h('button.btn.on-hero.ghost', { type: 'button', onclick: () => nav.push('service', { id: svc.id }) },
@@ -255,7 +266,7 @@ function feedItem(f, rs, nav) {
   const read = isRead(f, rs);
   const content = [
     h('div.feed-t', f.title), f.body ? h('div.feed-b', f.body) : null,
-    h('div.feed-m', fmt.stamp(f.at || Date.now()) + (S.isLeader && Array.isArray(f.to) ? ` · лично: ${f.to.map(id => (member(id) || {}).name).filter(Boolean).join(', ')}` : '')),
+    h('div.feed-m', fmt.stamp(f.at || Date.now())),
   ];
   return h('div.feed-i' + (read ? '.read' : '.new'),
     h('span.feed-dot'),
@@ -271,7 +282,7 @@ export function renderFeed(el, p, nav) {
   const feed = feedFor(M.memberId);
   const rs = readState();
   const unread = feed.filter(f => !isRead(f, rs)).length;
-  el.append(bar('Уведомления', nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Написать команде', onclick: openNotify }, icon('send', 20))] : []));
+  el.append(bar('Уведомления', nav, can('notify') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Написать команде', onclick: openNotify }, icon('send', 20))] : []));
   if (feed.length) el.append(h('div.row.between',
     h('span.small.muted', unread ? `Непрочитанных: ${unread}` : 'Все уведомления прочитаны'),
     unread ? h('button.btn.sm.soft', { type: 'button', onclick: () => markAllRead(feed, nav) }, icon('check', 16, 2.2), 'Прочитать все') : null));

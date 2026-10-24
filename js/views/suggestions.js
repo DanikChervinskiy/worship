@@ -1,7 +1,7 @@
 // Новые песни: предложить (может каждый), общий список, голосование, лидер переносит в базу.
 import { S, put, del, putMine } from '../store.js';
 import { h, icon, run, sheet, field, empty, bar, toast, linkBtn, safeUrl, seg } from '../ui.js';
-import { voteCounts, nameOfUid } from '../model.js';
+import { voteCounts, nameOfUid, can } from '../model.js';
 import { fmt } from '../dates.js';
 
 let tab = 'new';
@@ -46,7 +46,7 @@ export function render(el, p, nav) {
           h('div.row', { style: { marginTop: '4px' } },
             s.status && s.status !== 'new' ? h('span.chip.ink', STATUS[s.status]) : null,
             safeUrl(s.link) ? linkBtn(safeUrl(s.link), 'Послушать', '.chip.line') : null))),
-      S.isLeader ? h('div.row', { style: { paddingLeft: '64px' } },
+      can('songs') ? h('div.row', { style: { paddingLeft: '64px' } },
         s.status !== 'learning' && s.status !== 'added' ? h('button.btn.sm.soft', { type: 'button', onclick: () => run(() => put('suggestions', { ...s, status: 'learning' }, s.id), 'Отмечено: учим') }, 'Учим') : null,
         s.status !== 'added' ? h('button.btn.sm.soft', {
           type: 'button', onclick: () => run(async () => {

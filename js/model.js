@@ -16,6 +16,18 @@ export const roleLabel = k => (ROLE[k] ? ROLE[k].label : k === 'all' ? 'Все' 
 export const MUSICIANS = new Set(['keys', 'guitar', 'bass', 'drums']);
 export const OPERATORS = new Set(['sound', 'media']);
 
+// Права, которые лидер может выдать участникам (вкладка «Настройки»).
+export const PERMS = [
+  { k: 'songs', label: 'Песни и категории', hint: 'Добавлять и менять песни, категории, предложенные песни' },
+  { k: 'schedule', label: 'Расписание и состав', hint: 'Служения, события, состав, отметка «прошло», объявления о составе' },
+  { k: 'notify', label: 'Сообщения команде', hint: 'Отправлять объявления в ленту и push' },
+  { k: 'team', label: 'Команда и заявки', hint: 'Добавлять служителей, подтверждать заявки на вход' },
+  { k: 'study', label: 'Духовное развитие', hint: 'Блоки и уроки' },
+  { k: 'tasks', label: 'Задачи и распевки', hint: 'Создавать и менять задачи и упражнения' },
+];
+export const PERM = Object.fromEntries(PERMS.map(p => [p.k, p]));
+export const can = p => S.isLeader || (S.perms || []).includes(p);
+
 export const member = id => S.members.find(m => m.id === id);
 export const song = id => S.songs.find(s => s.id === id);
 export const service = id => S.services.find(s => s.id === id);
@@ -48,7 +60,9 @@ export const byName = (a, b) => String(a.name || a.title).localeCompare(String(b
 export const membersSorted = () => [...S.members].sort(byName);
 export const songsSorted = () => [...S.songs].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
 export const servicesSorted = () => [...S.services].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
-export const upcoming = (from = today()) => servicesSorted().filter(s => s.date >= from);
+// Служение считается прошедшим, если его отметили «прошло» или его день уже позади.
+export const isDone = s => !!s.done || s.date < today();
+export const upcoming = (from = today()) => servicesSorted().filter(s => s.date >= from && !s.done);
 
 export function personName(p) {
   if (!p) return '—';
@@ -90,7 +104,7 @@ export const svcLabel = svc => `${fmt.short(svc.date)}${svc.time ? ' · ' + svc.
 
 export function feedFor(memberId) {
   return S.feed
-    .filter(f => S.isLeader || f.to === 'all' || (Array.isArray(f.to) && memberId && f.to.includes(memberId)))
+    .filter(f => f.to === 'all' || (Array.isArray(f.to) && memberId && f.to.includes(memberId)))
     .sort((a, b) => (b.at || 0) - (a.at || 0));
 }
 

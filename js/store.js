@@ -20,6 +20,8 @@ export const S = {
   uid: null,
   user: null,        // { email, name }
   isLeader: false,
+  perms: [],         // отдельные права, выданные лидером: songs, schedule, team, notify, study, tasks
+  permsAll: {},      // (для лидера) права всех участников: uid → [..]
   leaders: [],
   requests: [],
   syncedAt: null,
@@ -56,7 +58,7 @@ function apply(o) {
 let cacheTimer;
 function saveCache() {
   clearTimeout(cacheTimer);
-  cacheTimer = setTimeout(() => ls.set(CACHE, { at: Date.now(), uid: S.uid, isLeader: S.isLeader, user: S.user, last, data: dataSnapshot() }), 600);
+  cacheTimer = setTimeout(() => ls.set(CACHE, { at: Date.now(), uid: S.uid, isLeader: S.isLeader, perms: S.perms, user: S.user, last, data: dataSnapshot() }), 600);
 }
 function clearData() {
   COLLS.forEach(c => (S[c] = []));
@@ -85,7 +87,7 @@ export async function init() {
   if (cached && cached.uid && cached.data) {
     apply(cached.data);
     last = cached.last || {};
-    S.uid = cached.uid; S.isLeader = !!cached.isLeader; S.user = cached.user || null; S.syncedAt = cached.at;
+    S.uid = cached.uid; S.isLeader = !!cached.isLeader; S.perms = cached.perms || []; S.user = cached.user || null; S.syncedAt = cached.at;
     S.mode = 'cache'; S.auth = 'ready'; S.loaded = true;
     emit();
   }
@@ -113,7 +115,7 @@ function onUser(user) {
   stopAll();
   if (!user) {
     if (S.uid) { clearData(); ls.del(CACHE); }
-    S.uid = null; S.user = null; S.isLeader = false; S.mode = 'cloud'; S.auth = 'signedOut'; S.loaded = true;
+    S.uid = null; S.user = null; S.isLeader = false; S.perms = []; S.mode = 'cloud'; S.auth = 'signedOut'; S.loaded = true;
     emit();
     return;
   }
@@ -127,6 +129,8 @@ function onUser(user) {
   unsubs.push(F.onSnapshot(F.doc(fs, 'meta', 'roles'), snap => {
     rolesExist = snap.exists();
     S.leaders = (snap.exists() && snap.data().leaders) || [];
+    S.permsAll = (snap.exists() && snap.data().perms) || {};
+    S.perms = S.permsAll[user.uid] || [];
     got.roles = true; recompute();
   }, err => { console.warn('roles', err); got.roles = true; rolesExist = true; recompute(); }));
 
@@ -140,7 +144,7 @@ function recompute() {
   if (!got.roles || !got.access) return;
   S.isLeader = S.leaders.includes(S.uid);
   if (!rolesExist) S.auth = 'setup';
-  else if (S.isLeader || myAccess) { S.auth = 'ready'; startData(); }
+  else if (S.isLeader || myAccess) { S.auth = 'ready'; startData(); watchRequests(); }
   else { S.auth = 'pending'; ensureRequest(); }
   emit();
 }
@@ -200,13 +204,21 @@ function startData() {
     }, err => { console.warn(name, err); done(name); emit(); }));
   }
 
-  if (S.isLeader) {
-    unsubs.push(F.onSnapshot(F.collection(fs, 'requests'), snap => {
+  emit();
+}
+
+// Заявки на вход видят лидер и те, кому выдано право «Команда».
+let reqUnsub = null;
+function watchRequests() {
+  const allowed = S.isLeader || S.perms.includes('team');
+  if (allowed && !reqUnsub) {
+    const { F, fs } = fb;
+    reqUnsub = F.onSnapshot(F.collection(fs, 'requests'), snap => {
       S.requests = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
       emit();
-    }, err => console.warn('requests', err)));
-  }
-  emit();
+    }, err => console.warn('requests', err));
+    unsubs.push(() => { if (reqUnsub) { reqUnsub(); reqUnsub = null; } });
+  } else if (!allowed && reqUnsub) { reqUnsub(); reqUnsub = null; S.requests = []; }
 }
 
 function strip(data) {
@@ -271,6 +283,19 @@ export async function put(coll, data, id) {
   return id;
 }
 
+// Изменить отдельные поля, не трогая остальное (нужно, когда участнику разрешено менять только их).
+export async function patch(coll, id, fields) {
+  const body = JSON.parse(JSON.stringify(fields));
+  if (S.mode === 'local') {
+    S[coll] = S[coll].map(x => (x.id === id ? { ...x, ...body } : x));
+    persistLocal(); emit();
+    return;
+  }
+  if (!fb || !S.uid) throw new Error('offline');
+  const { F, fs } = fb;
+  await commit(F.updateDoc(F.doc(fs, FS_NAME[coll] || coll, id), { ...body, u: F.serverTimestamp() }));
+}
+
 export async function del(coll, id) {
   if (S.mode === 'local') {
     S[coll] = S[coll].filter(x => x.id !== id);
@@ -316,6 +341,7 @@ export async function signUp(name, email, password) {
   S.user = { email, name };
 }
 export async function resetPassword(email) {
+  fb.auth.languageCode = 'ru';
   await fb.A.sendPasswordResetEmail(fb.auth, email);
 }
 export async function signOutUser() {
@@ -328,7 +354,15 @@ export async function claimLeader() {
 }
 export async function setLeaders(list) {
   const { F, fs } = fb;
-  await commit(F.setDoc(F.doc(fs, 'meta', 'roles'), { leaders: list }));
+  await commit(F.setDoc(F.doc(fs, 'meta', 'roles'), { leaders: list }, { merge: true }));
+}
+// Выдать или забрать отдельные права участнику.
+export async function setPerms(uid, list) {
+  if (S.mode === 'local') return;
+  const { F, fs } = fb;
+  const perms = { ...S.permsAll, [uid]: list };
+  if (!list.length) delete perms[uid];
+  await commit(F.setDoc(F.doc(fs, 'meta', 'roles'), { leaders: S.leaders, perms }));
 }
 export async function approveRequest(uid, memberId, email = '') {
   const { F, fs } = fb;
@@ -343,6 +377,7 @@ export async function rejectRequest(uid) {
 export async function revokeAccess(uid) {
   const { F, fs } = fb;
   await commit(F.deleteDoc(F.doc(fs, 'access', uid)));
+  if (S.permsAll[uid]) await setPerms(uid, []);
   const m = { ...S.links }; delete m[uid]; S.links = m; emit();
 }
 

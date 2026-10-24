@@ -8,53 +8,63 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     function rolesDoc() { return /databases/$(database)/documents/meta/roles; }
-    function isLeader() { return signedIn() && exists(rolesDoc()) && me() in get(rolesDoc()).data.leaders; }
+    function roles() { return get(rolesDoc()).data; }
+    function isLeader() { return signedIn() && exists(rolesDoc()) && me() in roles().leaders; }
     function isMember() { return signedIn() && (exists(/databases/$(database)/documents/access/$(me())) || isLeader()); }
+    // Отдельное право, выданное лидером во вкладке «Настройки»:
+    // songs, schedule, notify, team, study, tasks.
+    function can(p) { return isLeader() || (isMember() && p in roles().get('perms', {}).get(me(), [])); }
 
-    // Список лидеров. Первый вошедший может назначить себя, дальше меняют только лидеры.
+    // Лидеры и права. Первый вошедший может назначить себя, дальше меняют только лидеры.
     match /meta/roles {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.leaders == [me()];
       allow update: if isLeader() && request.resource.data.leaders.size() > 0;
     }
 
-    // Кому открыт доступ (и кто он в списке служителей). Выдаёт только лидер.
+    // Кому открыт доступ (и кто он в списке служителей).
     match /access/{uid} {
       allow read: if isMember() || (signedIn() && me() == uid);
-      allow write: if isLeader();
+      allow write: if can('team') || (isLeader() && me() == uid);
     }
 
-    // Заявки на вход: каждый пишет свою, лидер читает и удаляет.
+    // Заявки на вход: каждый пишет свою, лидер и право «Команда» читают и удаляют.
     match /requests/{uid} {
-      allow read: if isLeader() || (signedIn() && me() == uid);
+      allow read: if can('team') || (signedIn() && me() == uid);
       allow create, update: if signedIn() && me() == uid;
-      allow delete: if isLeader() || (signedIn() && me() == uid);
+      allow delete: if can('team') || (signedIn() && me() == uid);
     }
 
-    // Общие данные: читает команда, меняет лидер.
-    match /songs/{id}    { allow read: if isMember(); allow write: if isLeader(); }
-    match /services/{id} { allow read: if isMember(); allow write: if isLeader(); }
-    match /events/{id}   { allow read: if isMember(); allow write: if isLeader(); }
-    match /members/{id}  { allow read: if isMember(); allow write: if isLeader(); }
-    match /feed/{id}     { allow read: if isMember(); allow write: if isLeader(); }
-    match /lessons/{id}  { allow read: if isMember(); allow write: if isLeader(); }
-    match /warmups/{id}  { allow read: if isMember(); allow write: if isLeader(); }
-    match /categories/{id} { allow read: if isMember(); allow write: if isLeader(); }
+    // Песни: меняет право «Песни»; каподастр (поле capo) может настроить любой участник.
+    match /songs/{id} {
+      allow read: if isMember();
+      allow write: if can('songs');
+      allow update: if isMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['capo', 'u']);
+    }
+    match /categories/{id} { allow read: if isMember(); allow write: if can('songs'); }
 
-    // Задачи: создаёт лидер, отмечать пункты может вся команда.
+    match /services/{id} { allow read: if isMember(); allow write: if can('schedule'); }
+    match /events/{id}   { allow read: if isMember(); allow write: if can('schedule'); }
+    match /members/{id}  { allow read: if isMember(); allow write: if can('team'); }
+    // Лента: объявления пишут право «Сообщения» и «Расписание» (объявление состава, перестановки).
+    match /feed/{id}     { allow read: if isMember(); allow write: if can('notify') || can('schedule'); }
+    match /lessons/{id}  { allow read: if isMember(); allow write: if can('study'); }
+    match /warmups/{id}  { allow read: if isMember(); allow write: if can('tasks'); }
+
+    // Задачи: создаёт право «Задачи», отмечать пункты может вся команда.
     match /tasks/{id} {
       allow read: if isMember();
-      allow create: if isLeader();
-      allow update: if isLeader() || (isMember() && !('deleted' in request.resource.data));
-      allow delete: if isLeader();
+      allow create: if can('tasks');
+      allow update: if can('tasks') || (isMember() && !('deleted' in request.resource.data));
+      allow delete: if can('tasks');
     }
 
-    // Предложенные песни: предлагает любой участник, менять может автор или лидер.
+    // Предложенные песни: предлагает любой участник, менять может автор или право «Песни».
     match /suggestions/{id} {
       allow read: if isMember();
-      allow create: if isLeader() || (isMember() && request.resource.data.by == me());
-      allow update: if isLeader() || (isMember() && resource.data.by == me());
-      allow delete: if isLeader();
+      allow create: if can('songs') || (isMember() && request.resource.data.by == me());
+      allow update: if can('songs') || (isMember() && resource.data.by == me());
+      allow delete: if can('songs');
     }
 
     // Свои отметки доступности и голоса: читает команда, пишет только владелец.

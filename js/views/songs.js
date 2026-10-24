@@ -2,7 +2,7 @@
 // режимы показа, переводы, когда играли), редактор.
 import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, seg, empty, bar, toast, confirmSheet, copyText, linkBtn, safeUrl } from '../ui.js';
-import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory } from '../model.js';
+import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory, can } from '../model.js';
 import { plural, fmt, daysBetween, today } from '../dates.js';
 import { renderSong as renderText, transposeKey, semitones, prefersFlats, ALL_KEYS, keyChoices, lyricsOnly, convertChordsAbove } from '../chords.js';
 import { capoControl, capoState } from '../capo.js';
@@ -34,7 +34,7 @@ function ago(date) {
 export function render(el, p, nav) {
   el.append(h('header.top',
     h('div.stack', { style: { gap: '6px' } }, h('p.eyebrow', 'База'), h('h1.display', 'Песни')),
-    S.isLeader ? h('div.top-actions',
+    can('songs') ? h('div.top-actions',
       h('button.iconbtn', { type: 'button', 'aria-label': 'Категории', onclick: openCategories }, icon('tag')),
       h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить песню', onclick: () => openSongEditor(nav) }, icon('plus'))) : null));
 
@@ -63,19 +63,19 @@ export function render(el, p, nav) {
       }))
       : h('div.list', S.songs.length
         ? empty('search', 'Ничего не нашлось', catFilter !== 'all' ? 'В этой категории таких песен нет.' : 'Попробуйте другое слово из названия или текста.')
-        : empty('music', 'В базе пока нет песен', S.isLeader ? 'Добавьте первую песню — со словами, аккордами и партиями.' : 'Лидер скоро добавит песни.',
-          S.isLeader ? h('button.btn', { type: 'button', onclick: () => openSongEditor(nav) }, icon('plus', 18), 'Добавить песню') : null)));
+        : empty('music', 'В базе пока нет песен', can('songs') ? 'Добавьте первую песню — со словами, аккордами и партиями.' : 'Лидер скоро добавит песни.',
+          can('songs') ? h('button.btn', { type: 'button', onclick: () => openSongEditor(nav) }, icon('plus', 18), 'Добавить песню') : null)));
   };
 
   el.append(h('div.search', icon('search', 18), h('input#song-q', { type: 'search', placeholder: 'Название, автор или строчка из песни', value: q, oninput: e => { q = e.target.value; paint(); } })));
-  if (cats.length || S.isLeader) {
+  if (cats.length || can('songs')) {
     el.append(h('div.filters',
       cats.length ? h('button.chip', { type: 'button', 'aria-pressed': String(catFilter === 'all'), onclick: () => { catFilter = 'all'; nav.refresh(); } }, 'Все') : null,
       cats.map(c => h('button.chip.cat', {
         type: 'button', style: { '--cat': c.color }, 'aria-pressed': String(catFilter === c.id),
         onclick: () => { catFilter = catFilter === c.id ? 'all' : c.id; nav.refresh(); },
       }, h('span.cat-dot'), c.name)),
-      S.isLeader ? h('button.chip.line', { type: 'button', onclick: () => openCategories() }, icon(cats.length ? 'edit' : 'plus', 14, 2.2), cats.length ? 'Изменить' : 'Категории') : null));
+      can('songs') ? h('button.chip.line', { type: 'button', onclick: () => openCategories() }, icon(cats.length ? 'edit' : 'plus', 14, 2.2), cats.length ? 'Изменить' : 'Категории') : null));
   }
   el.append(h('div.row.between', countBox, h('span.small.muted', 'тон · размер · темп')));
   el.append(listBox);
@@ -91,7 +91,7 @@ export function renderSong(el, { id, key }, nav) {
   const st = view[vkey] || (view[vkey] = { mode: defaultMode(me().roles), steps: semitones(s.key, key || main), v: 0 });
   if (st.v >= versions.length) st.v = 0;
 
-  el.append(bar(s.title, nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить песню', onclick: () => openSongEditor(nav, s) }, icon('edit', 20))] : []));
+  el.append(bar(s.title, nav, can('songs') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить песню', onclick: () => openSongEditor(nav, s) }, icon('edit', 20))] : []));
 
   const target = transposeKey(s.key, st.steps);
   const capo = capoState(s.id, target);
@@ -120,11 +120,11 @@ export function renderSong(el, { id, key }, nav) {
         h('button', { type: 'button', 'aria-label': 'На полтона ниже', onclick: () => { st.steps = Math.max(-11, st.steps - 1); refresh(); } }, icon('minus', 18)),
         h('b', target || '—'),
         h('button', { type: 'button', 'aria-label': 'На полтона выше', onclick: () => { st.steps = Math.min(11, st.steps + 1); refresh(); } }, icon('plus', 18)))),
-    S.isLeader && target && target !== main ? h('button.btn.sm.soft', {
+    can('songs') && target && target !== main ? h('button.btn.sm.soft', {
       type: 'button', style: { alignSelf: 'flex-end' },
       onclick: () => run(() => put('songs', { ...s, playKey: target }, s.id), `Теперь основная тональность — ${target}`),
     }, `Сделать ${target} основной`) : null,
-    st.mode !== 'lyrics' && target ? capoControl(s.id, target, refresh) : null,
+    target ? capoControl(s.id, target, refresh) : null,
     versions.length > 1 ? h('div.row', h('span.small.muted', 'Перевод'), h('div.chips', versions.map((v, i) => h('button.chip', { type: 'button', 'aria-pressed': String(st.v === i), onclick: () => { st.v = i; refresh(); } }, v.label || `Версия ${i + 1}`)))) : null));
 
   if (s.arrangement || s.notes) {

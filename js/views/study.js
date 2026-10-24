@@ -3,7 +3,7 @@
 // Блоки хранятся в той же коллекции lessons с kind: 'block', уроки ссылаются на блок через blockId.
 import { S, put, del, putMine } from '../store.js';
 import { h, icon, run, sheet, field, empty, bar, toast, confirmSheet, safeUrl } from '../ui.js';
-import { myMemberId, nameOfUid, lessonsOnly, lessonBlocks } from '../model.js';
+import { myMemberId, nameOfUid, lessonsOnly, lessonBlocks, can } from '../model.js';
 import { fmt, plural } from '../dates.js';
 
 const byOrder = (a, b) => (a.order || 0) - (b.order || 0) || String(a.title).localeCompare(String(b.title), 'ru');
@@ -34,7 +34,7 @@ export function render(el, p, nav) {
   const blocks = lessonBlocks();
   const loose = lessonsIn('');
 
-  el.append(bar('Духовное развитие', nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить', onclick: () => openAddChooser(nav) }, icon('plus', 20))] : []));
+  el.append(bar('Духовное развитие', nav, can('study') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить', onclick: () => openAddChooser(nav) }, icon('plus', 20))] : []));
 
   if (all.length) {
     el.append(h('section.hero',
@@ -44,8 +44,8 @@ export function render(el, p, nav) {
   }
 
   if (!all.length && !blocks.length) {
-    el.append(h('div.list', empty('book', 'Уроков пока нет', S.isLeader ? 'Создайте блок — например, цикл лекций — и добавьте в него уроки со ссылками на видео.' : 'Лидер скоро добавит уроки.',
-      S.isLeader ? h('div.row', { style: { justifyContent: 'center' } },
+    el.append(h('div.list', empty('book', 'Уроков пока нет', can('study') ? 'Создайте блок — например, цикл лекций — и добавьте в него уроки со ссылками на видео.' : 'Лидер скоро добавит уроки.',
+      can('study') ? h('div.row', { style: { justifyContent: 'center' } },
         h('button.btn', { type: 'button', onclick: () => openBlockEditor(nav) }, icon('plus', 18), 'Создать блок'),
         h('button.btn.ghost', { type: 'button', onclick: () => openLessonEditor() }, 'Отдельный урок')) : null)));
     return;
@@ -91,7 +91,7 @@ export function renderBlock(el, { id }, nav) {
   const ls = lessonsIn(id);
   const d = ls.filter(l => notes[l.id]).length;
 
-  el.append(bar(b.title, nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить блок', onclick: () => openBlockEditor(nav, b) }, icon('edit', 20))] : []));
+  el.append(bar(b.title, nav, can('study') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить блок', onclick: () => openBlockEditor(nav, b) }, icon('edit', 20))] : []));
   el.append(h('section.hero',
     h('div', h('p.hero-k', 'Блок уроков'), h('p.hero-t', b.title), b.desc ? h('p.hero-s', { style: { whiteSpace: 'pre-line' } }, b.desc) : null),
     h('div.row.nowrap', h('div.progress.on-hero', h('span', { style: { width: (ls.length ? Math.round(d / ls.length * 100) : 0) + '%' } })), h('span.mono', { style: { fontSize: '13px', flex: 'none' } }, `${d} из ${ls.length}`)),
@@ -101,12 +101,12 @@ export function renderBlock(el, { id }, nav) {
     })()));
 
   if (!ls.length) {
-    el.append(h('div.list', empty('play', 'В блоке пока нет уроков', S.isLeader ? 'Добавьте первый урок со ссылкой на видео.' : null,
-      S.isLeader ? h('button.btn', { type: 'button', onclick: () => openLessonEditor(null, id) }, icon('plus', 18), 'Добавить урок') : null)));
+    el.append(h('div.list', empty('play', 'В блоке пока нет уроков', can('study') ? 'Добавьте первый урок со ссылкой на видео.' : null,
+      can('study') ? h('button.btn', { type: 'button', onclick: () => openLessonEditor(null, id) }, icon('plus', 18), 'Добавить урок') : null)));
     return;
   }
 
-  el.append(h('div.list', ls.map((l, i) => S.isLeader
+  el.append(h('div.list', ls.map((l, i) => can('study')
     ? h('div.li', { style: { gridTemplateColumns: '1fr auto' } },
       h('div', { style: { minWidth: '0' } }, lessonRow(l, i, notes, nav)),
       h('div.reorder',
@@ -114,7 +114,7 @@ export function renderBlock(el, { id }, nav) {
         h('button.iconbtn.flat', { type: 'button', 'aria-label': 'Ниже', disabled: i === ls.length - 1, onclick: () => swap(ls, i, i + 1) }, icon('down', 16))))
     : lessonRow(l, i, notes, nav))));
 
-  if (S.isLeader) el.append(h('button.btn.soft', { type: 'button', onclick: () => openLessonEditor(null, id) }, icon('plus', 18), 'Добавить урок в блок'));
+  if (can('study')) el.append(h('button.btn.soft', { type: 'button', onclick: () => openLessonEditor(null, id) }, icon('plus', 18), 'Добавить урок в блок'));
 }
 
 // Поменять два урока местами (порядок нумеруется заново, чтобы не было совпадений).
@@ -188,7 +188,7 @@ export function renderLesson(el, { id }, nav) {
   const pos = siblings.findIndex(x => x.id === id);
   const next = pos >= 0 ? siblings[pos + 1] : null;
 
-  el.append(bar(l.title, nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить урок', onclick: () => openLessonEditor(l) }, icon('edit', 20))] : []));
+  el.append(bar(l.title, nav, can('study') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить урок', onclick: () => openLessonEditor(l) }, icon('edit', 20))] : []));
   el.append(h('section.card',
     block ? h('p.eyebrow', `${block.title} · урок ${pos + 1} из ${siblings.length}`) : null,
     mine ? h('span.chip.ok', { style: { alignSelf: 'flex-start' } }, icon('check', 14, 2.4), `Пройден · ${fmt.stamp(mine.at)}`) : null,

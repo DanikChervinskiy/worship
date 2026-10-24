@@ -1,14 +1,14 @@
 // Задачи с подзадачами для разных ролей (например, звукооператору — протереть пульт).
 import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, empty, bar, toast, confirmSheet } from '../ui.js';
-import { ROLES, roleLabel, me } from '../model.js';
+import { ROLES, roleLabel, me, can } from '../model.js';
 
 let filter = null;
 
 export function render(el, p, nav) {
   const M = me();
   if (filter == null) filter = M.roles.length ? 'mine' : 'all';
-  el.append(bar('Задачи', nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить задачу', onclick: () => openTaskEditor() }, icon('plus', 20))] : []));
+  el.append(bar('Задачи', nav, can('tasks') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить задачу', onclick: () => openTaskEditor() }, icon('plus', 20))] : []));
 
   const roleKeys = ['all', ...ROLES.map(r => r.k)];
   el.append(h('div.filters',
@@ -20,8 +20,8 @@ export function render(el, p, nav) {
     .sort((a, b) => String(a.title).localeCompare(String(b.title), 'ru'));
 
   if (!list.length) {
-    el.append(h('div.list', empty('list', 'Задач нет', S.isLeader ? 'Добавьте задачу для роли — например, подготовить пульт перед служением.' : 'Для выбранной роли задач пока нет.',
-      S.isLeader ? h('button.btn', { type: 'button', onclick: () => openTaskEditor() }, icon('plus', 18), 'Добавить задачу') : null)));
+    el.append(h('div.list', empty('list', 'Задач нет', can('tasks') ? 'Добавьте задачу для роли — например, подготовить пульт перед служением.' : 'Для выбранной роли задач пока нет.',
+      can('tasks') ? h('button.btn', { type: 'button', onclick: () => openTaskEditor() }, icon('plus', 18), 'Добавить задачу') : null)));
     return;
   }
 
@@ -33,7 +33,7 @@ export function render(el, p, nav) {
       h('div.card-h',
         h('div.grow', h('b', t.title), h('div.small.muted', [roleLabel(t.role), t.when].filter(Boolean).join(' · '))),
         subs.length ? h('span.chip.mono' + (done === subs.length ? '.ok' : ''), `${done}/${subs.length}`) : null,
-        S.isLeader ? h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить задачу', onclick: () => openTaskEditor(t) }, icon('edit', 18)) : null),
+        can('tasks') ? h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить задачу', onclick: () => openTaskEditor(t) }, icon('edit', 18)) : null),
       subs.length ? h('div', subs.map((s, i) => h('label.check' + (s.done ? '.done' : ''),
         h('input', { type: 'checkbox', id: `tk-${t.id}-${i}`, checked: !!s.done, onchange: () => toggle(i) }),
         h('span', s.t)))) : null,

@@ -3,8 +3,7 @@ import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, seg, avatar, empty, bar, toast, confirmSheet } from '../ui.js';
 import {
   me, servicesSorted, rolesIn, roleLabel, ROLES, ROLE, svcSongs, svcTitle, svcLabel, myAvail, setAvail, availOf,
-  member, membersSorted, songsSorted, song, service, event, personName, teamMemberIds, teamPeople, notify, OPERATORS,
-} from '../model.js';
+  member, membersSorted, songsSorted, song, service, event, personName, teamMemberIds, teamPeople, notify, OPERATORS, can, isDone } from '../model.js';
 import { fmt, weeksOfMonth, today, addDays, parse, nextWeekday, monthKey, plural, relDay, pad } from '../dates.js';
 import { keyChoices } from '../chords.js';
 import { openProjector } from '../projector.js';
@@ -22,7 +21,7 @@ export function render(el, p, nav) {
 
   el.append(h('header.top',
     h('div.stack', { style: { gap: '6px' } }, h('p.eyebrow', 'Расписание'), h('h1.display', 'Служения')),
-    S.isLeader ? h('div.top-actions',
+    can('schedule') ? h('div.top-actions',
       h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить событие', onclick: () => openEventEditor(nav) }, icon('star')),
       h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить служение', onclick: () => openServiceEditor(nav, null, { date: firstSunday }) }, icon('plus'))) : null));
 
@@ -40,7 +39,7 @@ export function render(el, p, nav) {
       : h('p.strip-empty', 'В этом месяце служений пока нет'),
     M.memberId ? seg([['all', 'Все служения'], ['mine', 'Где я участвую']], onlyMine ? 'mine' : 'all', v => { onlyMine = v === 'mine'; nav.refresh(); }, '.on-hero.full') : null));
 
-  if (S.isLeader && list.length) {
+  if (can('schedule') && list.length) {
     const drafts = list.filter(s => !s.published && s.date >= today()).length;
     el.append(h('div.note', icon('send', 18),
       h('div.grow', drafts ? `${drafts} ${plural(drafts, ['служение', 'служения', 'служений'])} без объявленного состава.` : 'Состав на месяц объявлен.',
@@ -55,8 +54,8 @@ export function render(el, p, nav) {
       icon('right', 18)))));
 
   if (!list.length) {
-    el.append(h('div.list', empty('calendar', 'Служений нет', S.isLeader ? 'Добавьте первое служение на этот месяц.' : 'Расписание на этот месяц ещё не составлено.',
-      S.isLeader ? h('button.btn', { type: 'button', onclick: () => openServiceEditor(nav, null, { date: firstSunday }) }, icon('plus', 18), 'Добавить служение') : null)));
+    el.append(h('div.list', empty('calendar', 'Служений нет', can('schedule') ? 'Добавьте первое служение на этот месяц.' : 'Расписание на этот месяц ещё не составлено.',
+      can('schedule') ? h('button.btn', { type: 'button', onclick: () => openServiceEditor(nav, null, { date: firstSunday }) }, icon('plus', 18), 'Добавить служение') : null)));
     return;
   }
 
@@ -79,10 +78,10 @@ export function svcCard(s, M, nav) {
   if (myRoles.length) cls.push('mine');
   if (st === 'yes') cls.push('ok');
   if (st === 'no') cls.push('no');
-  if (s.date < today()) cls.push('past');
+  if (isDone(s)) cls.push('past');
   if (onlyMine && !myRoles.length) cls.push('dim');
   const songs = svcSongs(s);
-  const people = (s.published || S.isLeader) ? teamPeople(s) : [];
+  const people = (s.published || can('schedule')) ? teamPeople(s) : [];
   return h('button', { class: cls.join(' '), id: 'svc-' + s.id, type: 'button', onclick: () => nav.push('service', { id: s.id }) },
     h('div.svc-date', h('b', parse(s.date).getDate()), h('span', fmt.wd(s.date))),
     h('div.svc-body',
@@ -94,7 +93,8 @@ export function svcCard(s, M, nav) {
           ? h('div.avs', people.slice(0, 5).map(p => avatar(personName(p))), people.length > 5 ? h('span.av', `+${people.length - 5}`) : null)
           : h('span.small.muted', s.published ? 'Состав не назначен' : 'Состав уточняется'),
         h('div.chips',
-          !s.published && S.isLeader ? h('span.chip.line', 'Черновик') : null,
+          s.done ? h('span.chip', icon('check', 12, 2.6), 'Прошло') : null,
+          !s.published && !s.done && can('schedule') ? h('span.chip.line', 'Черновик') : null,
           myRoles.length ? h('span.chip.ink', myRoles.map(roleLabel).join(', ')) : null,
           st === 'yes' ? h('span.chip.ok', 'Смогу') : st === 'no' ? h('span.chip.no', 'Не смогу') : null))));
 }
@@ -109,11 +109,11 @@ export function renderService(el, { id }, nav) {
   const ev = s.eventId ? event(s.eventId) : null;
   const myRoles = s.published ? rolesIn(s, M.memberId) : [];
 
-  el.append(bar(svcTitle(s), nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить', onclick: () => openServiceEditor(nav, s) }, icon('edit', 20))] : []));
+  el.append(bar(svcTitle(s), nav, can('schedule') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить', onclick: () => openServiceEditor(nav, s) }, icon('edit', 20))] : []));
 
   el.append(h('section.hero',
     h('div',
-      h('p.hero-k', relDay(s.date) + (ev ? ` · ${ev.title}` : '')),
+      h('p.hero-k', (s.done ? 'Служение прошло · ' : '') + relDay(s.date) + (ev ? ` · ${ev.title}` : '')),
       h('p.hero-t', fmt.full(s.date)),
       h('p.hero-s', [s.time, svcTitle(s)].filter(Boolean).join(' · '))),
     (s.rehearsal || myRoles.length) ? h('div.chips',
@@ -123,7 +123,7 @@ export function renderService(el, { id }, nav) {
       h('button.btn.on-hero', { type: 'button', disabled: !songs.length, onclick: () => nav.push('perform', { id: s.id }) }, icon('play', 16), 'Режим служения'),
       h('button.btn.on-hero.ghost', { type: 'button', disabled: !songs.length, onclick: () => openProjector(s) }, icon('monitor', 16), 'Тексты'))));
 
-  if (M.memberId && s.date >= today()) {
+  if (M.memberId && s.date >= today() && !s.done) {
     const st = myAvail(s.id);
     el.append(h('section.card',
       h('div.card-h', h('h2.h2', 'Ваша доступность'), st ? h('span.chip.' + (st === 'yes' ? 'ok' : 'no'), st === 'yes' ? 'Отмечено: смогу' : 'Отмечено: не смогу') : h('span.small.muted', 'не отмечено')),
@@ -140,25 +140,35 @@ export function renderService(el, { id }, nav) {
       h('span.num', i + 1),
       h('div.li-main', h('div.li-t', x.song.title), h('div.li-s', [x.song.meter, x.song.bpm ? `${x.song.bpm} BPM` : '', x.song.author].filter(Boolean).join(' · '))),
       h('span.key-badge', x.key || x.song.playKey || x.song.key || '—'))))
-    : h('div.list', empty('music', 'Песни не выбраны', S.isLeader ? 'Откройте редактор и добавьте песни из базы.' : null)));
+    : h('div.list', empty('music', 'Песни не выбраны', can('schedule') ? 'Откройте редактор и добавьте песни из базы.' : null)));
 
   // Состав
-  el.append(h('div.sec-h', h('h2.h2', 'Состав'), !s.published && S.isLeader ? h('span.chip.line', 'Черновик') : null));
-  if (!s.published && !S.isLeader) {
+  el.append(h('div.sec-h', h('h2.h2', 'Состав'), !s.published && can('schedule') ? h('span.chip.line', 'Черновик') : null));
+  if (!s.published && !can('schedule')) {
     el.append(h('div.card', h('p.muted', 'Состав объявят позже. Пока можно отметить, сможете ли вы служить.')));
   } else {
     const rows = ROLES.filter(r => (s.team && s.team[r.k] || []).length).map(r => h('div.team-row',
       h('div.team-k', r.label),
       h('div.team-v', s.team[r.k].map(p => {
-        const a = S.isLeader && p.memberId ? availOf(p.memberId, s.id) : null;
+        const a = can('schedule') && p.memberId ? availOf(p.memberId, s.id) : null;
         const isMe = p.memberId && p.memberId === M.memberId;
         return h('span.chip' + (isMe ? '.ink' : a === 'no' ? '.no' : a === 'yes' ? '.ok' : ''), personName(p), a === 'no' ? ' · не сможет' : '');
       }))));
     el.append(h('section.card', rows.length ? rows : h('p.muted', 'Состав пока не назначен.')));
   }
 
+  // Отметить, что служение прошло: оно уходит с главной и из списков «сможете?».
+  if (can('schedule') && (s.done || s.date <= today())) {
+    el.append(h('section.card',
+      h('div.card-h', h('h2.h2', s.done ? 'Служение прошло' : 'Служение уже прошло?'), s.done ? icon('check', 22, 2.2) : null),
+      h('p.small.muted', s.done ? 'Оно больше не висит на главной и в напоминаниях.' : 'Отметьте — и оно перестанет висеть на главной у всей команды.'),
+      h('button.btn' + (s.done ? '.ghost' : ''), {
+        type: 'button', onclick: () => run(() => put('services', { ...s, done: !s.done }, s.id), s.done ? 'Служение снова в предстоящих' : 'Отмечено: служение прошло'),
+      }, s.done ? 'Вернуть в предстоящие' : h('span', icon('check', 18, 2.2), ' Служение прошло'))));
+  }
+
   // Лидеру: кто отметился
-  if (S.isLeader) {
+  if (can('schedule') && !s.done) {
     const yes = [], no = [];
     S.members.forEach(m => { const a = availOf(m.id, s.id); if (a === 'yes') yes.push(m.name); if (a === 'no') no.push(m.name); });
     el.append(h('section.card',
@@ -217,11 +227,11 @@ export function renderEvent(el, { id }, nav) {
   if (!e) { el.append(bar('Событие', nav), h('div.list', empty('star', 'Событие не найдено'))); return; }
   const M = me();
   const days = servicesSorted().filter(s => s.eventId === id);
-  el.append(bar(e.title, nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить', onclick: () => openEventEditor(nav, e) }, icon('edit', 20))] : []));
+  el.append(bar(e.title, nav, can('schedule') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить', onclick: () => openEventEditor(nav, e) }, icon('edit', 20))] : []));
   el.append(h('section.hero',
     h('div', h('p.hero-k', 'Событие'), h('p.hero-t', e.title), h('p.hero-s', rangeLabel(e))),
     e.note ? h('p.hero-s', e.note) : null,
-    S.isLeader ? h('div.row', h('button.btn.on-hero', {
+    can('schedule') ? h('div.row', h('button.btn.on-hero', {
       type: 'button',
       onclick: () => {
         const last = days.length ? days[days.length - 1].date : null;
@@ -230,7 +240,7 @@ export function renderEvent(el, { id }, nav) {
       },
     }, icon('plus', 18), 'Добавить день')) : null));
   el.append(days.length ? h('div.stack', days.map(s => svcCard(s, M, nav)))
-    : h('div.list', empty('calendar', 'Дни ещё не добавлены', S.isLeader ? 'Добавьте день — у каждого свой список песен и состав.' : null)));
+    : h('div.list', empty('calendar', 'Дни ещё не добавлены', can('schedule') ? 'Добавьте день — у каждого свой список песен и состав.' : null)));
 }
 
 export function openEventEditor(nav, existing) {

@@ -61,16 +61,16 @@ export function render(el, { id }, nav) {
             h('div.small.muted.mono', [targetKey, x.song.meter, x.song.bpm ? `${x.song.bpm} BPM` : ''].filter(Boolean).join(' · ')))),
         h('div.psong-ctl',
           seg([['lyrics', 'Слова'], ['both', 'Акк + слова'], ['chords', 'Аккорды']], mode, v => { prefs.m[key] = v; save(); paint(); }),
-          mode !== 'lyrics' ? h('div.transp',
+          h('div.transp',
             h('button', { type: 'button', 'aria-label': 'Ниже', onclick: () => shiftKey(-1) }, icon('minus', 16)),
             h('b', targetKey || '—'),
-            h('button', { type: 'button', 'aria-label': 'Выше', onclick: () => shiftKey(1) }, icon('plus', 16))) : null,
-          mode !== 'lyrics' && targetKey ? capoControl(x.song.id, targetKey, paint) : null,
+            h('button', { type: 'button', 'aria-label': 'Выше', onclick: () => shiftKey(1) }, icon('plus', 16))),
+          targetKey ? capoControl(x.song.id, targetKey, paint) : null,
           versions.length > 1 ? h('select', {
             'aria-label': 'Перевод', style: { width: 'auto', minHeight: '40px', fontSize: '14px' }, value: String(vi),
             onchange: e => { prefs.v[key] = Number(e.target.value); save(); paint(); },
           }, versions.map((v, k) => h('option', { value: String(k) }, v.label || `Версия ${k + 1}`))) : null),
-        x.song.arrangement && mode !== 'lyrics' ? h('p.small.mono.muted', x.song.arrangement) : null,
+        x.song.arrangement ? h('div.arr', h('span.eyebrow', 'Порядок'), h('span.arr-v', x.song.arrangement)) : null,
         versions[vi].text.trim()
           ? renderSong(versions[vi].text, { mode, steps: steps - capo.fret * (capo.on ? 1 : 0), flats: prefersFlats(capo.on ? capo.shape : targetKey) })
           : h('p.muted', 'Текст ещё не добавлен.'));
