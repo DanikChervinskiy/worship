@@ -465,6 +465,10 @@ button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
 .cat-swatch.lg { width: 40px; height: 40px; }
 .cat-swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
 .swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 2px; }
+.cat-swatch.custom { position: relative; overflow: hidden; cursor: pointer; background: conic-gradient(#E5484D, #E2A336, #46A758, #0090FF, #6E56CF, #D6409F, #E5484D); }
+.cat-swatch.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; min-height: 0; padding: 0; border: 0; }
+.cat-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 2px; padding: 4px 4px 4px 0; border-radius: 14px; background: var(--surface-2); }
+.cat-row-main { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 8px 12px; text-align: left; min-width: 0; }
 
 /* ——— каподастр ——— */
 .capo { display: flex; align-items: center; gap: 8px; min-width: 0; }

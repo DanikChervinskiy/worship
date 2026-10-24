@@ -68,13 +68,14 @@ export function render(el, p, nav) {
   };
 
   el.append(h('div.search', icon('search', 18), h('input#song-q', { type: 'search', placeholder: 'Название, автор или строчка из песни', value: q, oninput: e => { q = e.target.value; paint(); } })));
-  if (cats.length) {
+  if (cats.length || S.isLeader) {
     el.append(h('div.filters',
-      h('button.chip', { type: 'button', 'aria-pressed': String(catFilter === 'all'), onclick: () => { catFilter = 'all'; nav.refresh(); } }, 'Все'),
+      cats.length ? h('button.chip', { type: 'button', 'aria-pressed': String(catFilter === 'all'), onclick: () => { catFilter = 'all'; nav.refresh(); } }, 'Все') : null,
       cats.map(c => h('button.chip.cat', {
         type: 'button', style: { '--cat': c.color }, 'aria-pressed': String(catFilter === c.id),
         onclick: () => { catFilter = catFilter === c.id ? 'all' : c.id; nav.refresh(); },
-      }, h('span.cat-dot'), c.name))));
+      }, h('span.cat-dot'), c.name)),
+      S.isLeader ? h('button.chip.line', { type: 'button', onclick: () => openCategories() }, icon(cats.length ? 'edit' : 'plus', 14, 2.2), cats.length ? 'Изменить' : 'Категории') : null));
   }
   el.append(h('div.row.between', countBox, h('span.small.muted', 'тон · размер · темп')));
   el.append(listBox);
@@ -168,7 +169,7 @@ export function openSongEditor(nav, existing) {
       h('div.grid2',
         field('Размер', h('select#so-meter', { value: st.meter || '4/4', onchange: e => (st.meter = e.target.value) }, ['4/4', '3/4', '6/8', '2/4', '12/8'].map(m => h('option', { value: m }, m)))),
         field('BPM', h('input#so-bpm', { type: 'number', inputmode: 'numeric', min: 30, max: 240, value: st.bpm || '', oninput: e => (st.bpm = e.target.value) }))),
-      h('div.fld', h('span', 'Категории'),
+      h('div.fld', h('div.row.between', h('span', 'Категории'), cats.length ? h('button.small', { type: 'button', style: { fontWeight: '600', color: 'var(--ink-2)' }, onclick: () => openCategories(() => setTimeout(ctx.paint, 120)) }, 'Изменить категории') : null),
         h('div.chips',
           cats.map(c => h('button.chip.cat', {
             type: 'button', style: { '--cat': c.color, height: '34px', padding: '0 12px', fontSize: '13px' }, 'aria-pressed': String(st.cats.includes(c.id)),
