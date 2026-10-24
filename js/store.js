@@ -271,19 +271,6 @@ export async function put(coll, data, id) {
   return id;
 }
 
-// Изменить отдельные поля, не трогая остальное (нужно, когда участнику разрешено менять только их).
-export async function patch(coll, id, fields) {
-  const body = JSON.parse(JSON.stringify(fields));
-  if (S.mode === 'local') {
-    S[coll] = S[coll].map(x => (x.id === id ? { ...x, ...body } : x));
-    persistLocal(); emit();
-    return;
-  }
-  if (!fb || !S.uid) throw new Error('offline');
-  const { F, fs } = fb;
-  await commit(F.updateDoc(F.doc(fs, FS_NAME[coll] || coll, id), { ...body, u: F.serverTimestamp() }));
-}
-
 export async function del(coll, id) {
   if (S.mode === 'local') {
     S[coll] = S[coll].filter(x => x.id !== id);

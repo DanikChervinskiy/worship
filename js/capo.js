@@ -1,9 +1,13 @@
-// Каподастр: любой участник команды выбирает, какими формами играть песню (например, формы D),
-// и это сохраняется в самой песне — у всех одинаково. Лад считается сам: песня звучит в F#, формы D → капо 4.
-import { patch } from './store.js';
+// Каподастр: лидер выбирает, какими формами играть песню (например, формы D), и это сохраняется
+// в самой песне — у всей команды одинаково. Лад считается сам: песня звучит в F#, формы D → капо на 4 ладу.
+// Участник может временно выключить каподастр у себя (только на своём устройстве), но не поменять настройку.
+import { S, ls, put } from './store.js';
 import { h, icon, sheet, run } from './ui.js';
 import { transposeKey, semitones } from './chords.js';
 import { song } from './model.js';
+
+const LOCAL = 'wt.capoOff'; // песни, где участник у себя временно выключил каподастр
+const localOff = () => ls.get(LOCAL) || {};
 
 // Лад каподастра: насколько звучащая тональность выше формы (0–11).
 export const fretFor = (target, shape) => ((semitones(shape, target) % 12) + 12) % 12;
@@ -13,28 +17,40 @@ export function capoState(songId, target) {
   const c = (s && s.capo) || null;
   if (!c || !c.shape || !target) return { on: false, saved: false, shape: '', fret: 0 };
   const fret = fretFor(target, c.shape);
-  return { on: !!c.on && fret > 0, teamOn: !!c.on, saved: true, shape: c.shape, fret };
+  const hiddenHere = !S.isLeader && !!localOff()[songId];
+  return { on: !!c.on && fret > 0 && !hiddenHere, teamOn: !!c.on, saved: true, shape: c.shape, fret, hiddenHere };
 }
 
 async function saveCapo(songId, capo) {
   const s = song(songId);
   if (!s) return;
-  await run(() => patch('songs', songId, { capo }), capo && capo.shape ? 'Каподастр сохранён для всей команды' : 'Каподастр убран');
+  await run(() => put('songs', { ...s, capo }, songId), capo && capo.shape ? 'Каподастр сохранён для всей команды' : 'Каподастр убран');
 }
 
 // Кнопка-переключатель и подпись. onChange вызывается после любого изменения.
 export function capoControl(songId, target, onChange) {
   const st = capoState(songId, target);
+  if (!S.isLeader && !st.saved) return null; // участнику без настройки лидера кнопка не нужна
+
   const toggle = async () => {
-    if (!st.saved) return openCapoChooser(songId, target, onChange);
-    await saveCapo(songId, { shape: st.shape, on: !st.teamOn });
+    if (S.isLeader) {
+      if (!st.saved) return openCapoChooser(songId, target, onChange);
+      await saveCapo(songId, { shape: st.shape, on: !st.teamOn });
+    } else {
+      const off = localOff();
+      if (off[songId]) delete off[songId]; else off[songId] = true;
+      ls.set(LOCAL, off);
+    }
     onChange();
   };
+
   const label = !st.saved ? 'Каподастр…'
     : st.fret ? `Капо ${st.fret} · формы ${st.shape}` : `Формы ${st.shape} · без капо`;
   return h('div.capo',
     h('button.capo-btn', { type: 'button', 'aria-pressed': String(st.on), 'aria-label': st.on ? 'Выключить каподастр' : 'Включить каподастр', title: 'Каподастр', onclick: toggle }, icon('capo', 18, 2)),
-    h('button.capo-label', { type: 'button', onclick: () => openCapoChooser(songId, target, onChange) }, label));
+    S.isLeader
+      ? h('button.capo-label', { type: 'button', onclick: () => openCapoChooser(songId, target, onChange) }, label)
+      : h('span.capo-label', { style: { textDecoration: 'none' } }, label, st.hiddenHere ? ' · выключен у вас' : ''));
 }
 
 export function openCapoChooser(songId, target, onChange) {
