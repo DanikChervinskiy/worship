@@ -22,7 +22,7 @@ window.__wtBooted = true;
 (() => {
   const l = document.createElement('link');
   l.rel = 'stylesheet';
-  l.href = 'https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@500;600&display=swap';
+  l.href = 'https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@500;600&display=swap';
   document.head.append(l);
 })();
 

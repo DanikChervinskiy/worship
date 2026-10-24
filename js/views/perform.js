@@ -20,10 +20,17 @@ export function render(el, { id }, nav) {
   const roles = rolesIn(s, M.memberId);
   const defMode = defaultMode(roles.length ? roles : M.roles);
   const items = svcSongs(s);
-  el.style.setProperty('--fs', prefs.fs);
+  // Чем крупнее текст, тем он жирнее: так его легче читать издалека.
+  const weightFor = fs => (fs >= 2.0 ? 700 : fs >= 1.7 ? 600 : fs >= 1.4 ? 500 : 400);
+  const applyFs = () => { el.style.setProperty('--fs', prefs.fs); el.style.setProperty('--fw', weightFor(prefs.fs)); };
+  applyFs();
 
   const counter = h('span', `1 / ${items.length}`);
-  const setFs = d => { prefs.fs = Math.round(Math.min(1.8, Math.max(0.8, prefs.fs + d)) * 10) / 10; save(); el.style.setProperty('--fs', prefs.fs); };
+  const setFs = d => {
+    const next = Math.round(Math.min(2.6, Math.max(0.8, prefs.fs + d)) * 10) / 10;
+    if (next === prefs.fs) return toast(d > 0 ? 'Это самый крупный размер' : 'Это самый мелкий размер');
+    prefs.fs = next; save(); applyFs();
+  };
 
   el.append(h('header.pbar',
     h('button.iconbtn.flat', { type: 'button', 'aria-label': 'Выйти из режима служения', onclick: () => nav.back() }, icon('x')),
@@ -142,5 +149,7 @@ export function render(el, { id }, nav) {
     document.removeEventListener('visibilitychange', onVis);
     try { lock && lock.release(); } catch { /* */ }
     document.body.classList.remove('perform');
+    el.style.removeProperty('--fs');
+    el.style.removeProperty('--fw');
   };
 }

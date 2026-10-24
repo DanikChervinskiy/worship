@@ -307,10 +307,10 @@ button.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 /* ——— song text ——— */
 .songtxt { font-size: calc(17px * var(--fs, 1)); line-height: 1.35; overflow-wrap: anywhere; }
 .songtxt .ln { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: .32em; white-space: pre-wrap; min-height: 1.35em; }
-.songtxt .ln.plain { display: block; }
+.songtxt .ln.plain { display: block; font-weight: var(--fw, 400); }
 .songtxt .seg { display: inline-flex; flex-direction: column; }
 .songtxt .c { font-family: var(--f-mono); font-weight: 700; font-size: .8em; line-height: 1.25; padding-right: .45em; color: var(--ink); white-space: pre; }
-.songtxt .t { color: var(--ink-2); white-space: pre-wrap; }
+.songtxt .t { color: var(--ink-2); white-space: pre-wrap; font-weight: var(--fw, 400); }
 .songtxt.lyrics .t, .songtxt .ln.plain { color: var(--ink); }
 .songtxt .chline { font-family: var(--f-mono); font-weight: 700; color: var(--ink); margin-bottom: .45em; word-spacing: .5em; }
 .songtxt .sec {
