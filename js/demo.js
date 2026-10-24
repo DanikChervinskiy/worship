@@ -84,6 +84,16 @@ export function buildDemo() {
       versions: [{ label: 'English', text: HOLY_EN }] },
   ].map(s => ({ ...s, ...D, createdAt: Date.now() }));
 
+  const categories = [
+    { id: 'demo-cat-worship', name: 'Поклонение', color: '#6E56CF' },
+    { id: 'demo-cat-hymn', name: 'Гимны', color: '#E2A336' },
+    { id: 'demo-cat-new', name: 'Новые', color: '#46A758' },
+  ].map(c => ({ ...c, ...D }));
+  songs[0].cats = ['demo-cat-worship', 'demo-cat-new'];
+  songs[1].cats = ['demo-cat-hymn'];
+  songs[2].cats = ['demo-cat-hymn', 'demo-cat-worship'];
+  songs[2].playKey = 'Eb';
+
   const drummers = ['demo-alina', 'demo-katya', 'demo-vitya'];
   const services = [];
   let sunday = nextWeekday(0, addDays(today(), -7));
@@ -156,5 +166,5 @@ export function buildDemo() {
     { id: 'demo-w5', ...D, kind: 'daily', title: 'Гамма на «а»', url: '', note: 'Медленно, ровным звуком, следим за опорой.' },
   ];
 
-  return { members, songs, services, events, feed, suggestions, lessons, tasks, warmups };
+  return { members, songs, services, events, feed, suggestions, lessons, tasks, warmups, categories };
 }

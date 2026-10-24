@@ -11,7 +11,7 @@ const OUT = process.env.BACKUP_DIR || 'backup';
 admin.initializeApp({ credential: admin.credential.cert(sa) });
 const db = admin.firestore();
 
-const COLLECTIONS = ['songs', 'services', 'events', 'members', 'feed', 'suggestions', 'lessons', 'tasks', 'warmups',
+const COLLECTIONS = ['songs', 'services', 'events', 'members', 'feed', 'suggestions', 'lessons', 'tasks', 'warmups', 'categories',
   'access', 'avail', 'votes', 'notes', 'feedback', 'meta'];
 
 const plain = v => {

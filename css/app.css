@@ -436,6 +436,24 @@ input[type="checkbox"]:checked::after { content: ""; width: 10px; height: 6px; b
 .tab span { display: none; }
 .tab-plus { justify-self: center; width: 60px; height: 60px; margin-top: -30px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; box-shadow: 0 0 0 6px var(--bg), 0 8px 20px rgba(0, 0, 0, .2); }
 
+/* ——— категории ——— */
+.chip.cat { --cat: #8B8D98; }
+.cat-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cat, #8B8D98); flex: none; display: inline-block; }
+button.chip.cat[aria-pressed="true"] { background: var(--cat); color: #fff; }
+button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
+.cat-dots { display: flex; gap: 4px; margin-top: 5px; }
+.cat-dots .cat-dot { width: 7px; height: 7px; }
+.cat-swatch { width: 28px; height: 28px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; color: #fff; }
+.cat-swatch.lg { width: 40px; height: 40px; }
+.cat-swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
+.swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 2px; }
+
+/* ——— каподастр ——— */
+.capo { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.capo-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-2); flex: none; }
+.capo-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.capo-label { font-size: 13px; font-weight: 600; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; min-width: 0; }
+
 /* ——— потянуть, чтобы обновить ——— */
 .ptr {
   position: fixed; left: 50%; top: env(safe-area-inset-top, 0px); z-index: 25;

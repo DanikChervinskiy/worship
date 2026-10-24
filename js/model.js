@@ -20,6 +20,18 @@ export const member = id => S.members.find(m => m.id === id);
 export const song = id => S.songs.find(s => s.id === id);
 export const service = id => S.services.find(s => s.id === id);
 export const event = id => S.events.find(e => e.id === id);
+export const category = id => S.categories.find(c => c.id === id);
+export const categoriesSorted = () => [...S.categories].sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'));
+// Цвета категорий: читаются и на светлой, и на тёмной теме.
+export const CAT_COLORS = ['#E5484D', '#F76B15', '#E2A336', '#46A758', '#12A594', '#0090FF', '#6E56CF', '#D6409F', '#8B8D98'];
+
+// Когда песню играли: последний раз, сколько всего и когда в следующий раз по расписанию.
+export function songHistory(songId) {
+  const t = today();
+  const all = servicesSorted().filter(s => (s.songs || []).some(x => x.songId === songId));
+  const past = all.filter(s => s.date <= t);
+  return { last: past.length ? past[past.length - 1] : null, count: past.length, next: all.find(s => s.date > t) || null };
+}
 
 export const memberOfUid = uid => (S.links[uid] && S.links[uid].memberId) || (S.avail[uid] && S.avail[uid].memberId) || null;
 export const myMemberId = () => (S.links[S.uid] && S.links[S.uid].memberId) || null;

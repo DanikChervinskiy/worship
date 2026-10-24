@@ -39,6 +39,7 @@ service cloud.firestore {
     match /feed/{id}     { allow read: if isMember(); allow write: if isLeader(); }
     match /lessons/{id}  { allow read: if isMember(); allow write: if isLeader(); }
     match /warmups/{id}  { allow read: if isMember(); allow write: if isLeader(); }
+    match /categories/{id} { allow read: if isMember(); allow write: if isLeader(); }
 
     // Задачи: создаёт лидер, отмечать пункты может вся команда.
     match /tasks/{id} {

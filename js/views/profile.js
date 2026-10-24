@@ -69,7 +69,7 @@ export function render(el, p, nav) {
         fileIn),
       isCloud() ? h('p.hint', 'Кроме этого, GitHub каждую ночь сам сохраняет копию в приватный репозиторий (если настроен бэкап из инструкции).') : null));
 
-    const demoCount = ['songs', 'services', 'members', 'events', 'lessons', 'tasks', 'warmups', 'suggestions', 'feed'].reduce((n, c) => n + S[c].filter(r => r.demo).length, 0);
+    const demoCount = ['songs', 'services', 'members', 'events', 'lessons', 'tasks', 'warmups', 'suggestions', 'feed', 'categories'].reduce((n, c) => n + S[c].filter(r => r.demo).length, 0);
     el.append(h('section.card',
       h('h2.h2', 'Пример данных'),
       h('p.small.muted', 'Пример помогает быстро посмотреть, как всё работает. Примерные записи удаляются одной кнопкой, ваши данные не затрагиваются.'),

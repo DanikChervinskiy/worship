@@ -1,40 +1,82 @@
-// База песен: поиск, карточка песни (транспонирование, режимы, переводы), редактор.
+// База песен: поиск и категории, карточка песни (основная тональность, транспонирование, каподастр,
+// режимы показа, переводы, когда играли), редактор.
 import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, seg, empty, bar, toast, confirmSheet, copyText, linkBtn, safeUrl } from '../ui.js';
-import { me, songsSorted, song, MUSICIANS } from '../model.js';
-import { plural } from '../dates.js';
-import { renderSong as renderText, transposeKey, semitones, prefersFlats, ALL_KEYS, lyricsOnly, convertChordsAbove } from '../chords.js';
+import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory } from '../model.js';
+import { plural, fmt, daysBetween, today } from '../dates.js';
+import { renderSong as renderText, transposeKey, semitones, prefersFlats, ALL_KEYS, keyChoices, lyricsOnly, convertChordsAbove } from '../chords.js';
+import { capoControl, capoState } from '../capo.js';
+import { catChip, songCats, openCategories, openCategoryEditor } from '../categories.js';
 
 let q = '';
-const view = {}; // id песни → { mode, steps, v }
+let catFilter = 'all';
+const view = {}; // песня|тональность из служения → { mode, steps, v }
 
 export function defaultMode(roles) {
   if (!roles || !roles.length) return 'both';
   return roles.some(r => MUSICIANS.has(r)) ? 'both' : 'lyrics';
 }
 
+// Тональность, в которой команда играет песню сейчас.
+export const playKey = s => s.playKey || s.key || '';
+
+function ago(date) {
+  const d = daysBetween(date, today());
+  if (d === 0) return 'сегодня';
+  if (d === 1) return 'вчера';
+  if (d < 7) return `${d} ${plural(d, ['день', 'дня', 'дней'])} назад`;
+  const w = Math.round(d / 7);
+  if (d < 60) return `${w} ${plural(w, ['неделю', 'недели', 'недель'])} назад`;
+  const m = Math.round(d / 30);
+  return `${m} ${plural(m, ['месяц', 'месяца', 'месяцев'])} назад`;
+}
+
 export function render(el, p, nav) {
   el.append(h('header.top',
     h('div.stack', { style: { gap: '6px' } }, h('p.eyebrow', 'База'), h('h1.display', 'Песни')),
-    S.isLeader ? h('div.top-actions', h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить песню', onclick: () => openSongEditor(nav) }, icon('plus'))) : null));
+    S.isLeader ? h('div.top-actions',
+      h('button.iconbtn', { type: 'button', 'aria-label': 'Категории', onclick: openCategories }, icon('tag')),
+      h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить песню', onclick: () => openSongEditor(nav) }, icon('plus'))) : null));
+
+  const cats = categoriesSorted();
+  if (catFilter !== 'all' && !cats.some(c => c.id === catFilter)) catFilter = 'all';
 
   const listBox = h('div');
+  const countBox = h('span.small.muted');
   const paint = () => {
     const t = q.trim().toLowerCase();
-    const list = songsSorted().filter(s => !t || [s.title, s.author, ...(s.versions || []).map(v => v.text)].join(' ').toLowerCase().includes(t));
+    const list = songsSorted()
+      .filter(s => catFilter === 'all' || (s.cats || []).includes(catFilter))
+      .filter(s => !t || [s.title, s.author, ...(s.versions || []).map(v => v.text)].join(' ').toLowerCase().includes(t));
+    countBox.textContent = `${list.length} ${plural(list.length, ['песня', 'песни', 'песен'])}`;
     listBox.replaceChildren(list.length
-      ? h('div.list', list.map(s => h('button.li', { type: 'button', onclick: () => nav.push('song', { id: s.id }) },
-        h('span.key-badge', s.key || '—'),
-        h('div.li-main', h('div.li-t', s.title), h('div.li-s.ellip', s.author || ((s.versions || []).length > 1 ? `${s.versions.length} версии` : ''))),
-        h('span.li-s.mono', [s.meter, s.bpm ? `${s.bpm}` : ''].filter(Boolean).join(' · ')))))
+      ? h('div.list', list.map(s => {
+        const hist = songHistory(s.id);
+        const sc = songCats(s);
+        return h('button.li', { type: 'button', onclick: () => nav.push('song', { id: s.id }) },
+          h('span.key-badge', playKey(s) || '—'),
+          h('div.li-main',
+            h('div.li-t', s.title),
+            h('div.li-s.ellip', [s.author, hist.last ? `играли ${fmt.dayShort(hist.last.date)}` : 'ещё не играли'].filter(Boolean).join(' · ')),
+            sc.length ? h('div.cat-dots', sc.map(c => h('span.cat-dot', { title: c.name, style: { '--cat': c.color } }))) : null),
+          h('span.li-s.mono', [s.meter, s.bpm ? `${s.bpm}` : ''].filter(Boolean).join(' · ')));
+      }))
       : h('div.list', S.songs.length
-        ? empty('search', 'Ничего не нашлось', 'Попробуйте другое слово из названия или текста.')
+        ? empty('search', 'Ничего не нашлось', catFilter !== 'all' ? 'В этой категории таких песен нет.' : 'Попробуйте другое слово из названия или текста.')
         : empty('music', 'В базе пока нет песен', S.isLeader ? 'Добавьте первую песню — со словами, аккордами и партиями.' : 'Лидер скоро добавит песни.',
           S.isLeader ? h('button.btn', { type: 'button', onclick: () => openSongEditor(nav) }, icon('plus', 18), 'Добавить песню') : null)));
   };
+
   el.append(h('div.search', icon('search', 18), h('input#song-q', { type: 'search', placeholder: 'Название, автор или строчка из песни', value: q, oninput: e => { q = e.target.value; paint(); } })));
-  el.append(h('div.row.between', h('span.small.muted', `${S.songs.length} ${plural(S.songs.length, ['песня', 'песни', 'песен'])} в базе`),
-    h('span.small.muted', 'тон · размер · темп')));
+  if (cats.length) {
+    el.append(h('div.filters',
+      h('button.chip', { type: 'button', 'aria-pressed': String(catFilter === 'all'), onclick: () => { catFilter = 'all'; nav.refresh(); } }, 'Все'),
+      cats.map(c => h('button.chip.cat', {
+        type: 'button', style: { '--cat': c.color }, 'aria-pressed': String(catFilter === c.id),
+        onclick: () => { catFilter = catFilter === c.id ? 'all' : c.id; nav.refresh(); },
+      }, h('span.cat-dot'), c.name))));
+  }
+  el.append(h('div.row.between', countBox, h('span.small.muted', 'тон · размер · темп')));
   el.append(listBox);
   paint();
 }
@@ -43,35 +85,46 @@ export function renderSong(el, { id, key }, nav) {
   const s = song(id);
   if (!s) { el.append(bar('Песня', nav), h('div.list', empty('music', 'Песня не найдена', 'Возможно, её удалили из базы.'))); return; }
   const versions = (s.versions && s.versions.length) ? s.versions : [{ label: 'Текст', text: '' }];
-  const st = view[id + '|' + (key || '')] || (view[id + '|' + (key || '')] = { mode: defaultMode(me().roles), steps: key ? semitones(s.key, key) : 0, v: 0 });
+  const main = playKey(s);
+  const vkey = id + '|' + (key || '');
+  const st = view[vkey] || (view[vkey] = { mode: defaultMode(me().roles), steps: semitones(s.key, key || main), v: 0 });
   if (st.v >= versions.length) st.v = 0;
 
   el.append(bar(s.title, nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить песню', onclick: () => openSongEditor(nav, s) }, icon('edit', 20))] : []));
 
   const target = transposeKey(s.key, st.steps);
-  const textBox = h('section.card');
-  const paintText = () => {
-    const tk = transposeKey(s.key, st.steps);
-    textBox.replaceChildren(renderText(versions[st.v].text, { mode: st.mode, steps: st.steps, flats: prefersFlats(tk) }));
-    if (!versions[st.v].text.trim()) textBox.replaceChildren(h('p.muted', 'Текст ещё не добавлен.'));
-  };
+  const capo = capoState(s.id, target);
+  const shown = capo.on ? capo.shape : target;
+  const hist = songHistory(s.id);
+  const sc = songCats(s);
 
   el.append(h('div.stack',
-    s.author ? h('p.muted', s.author) : null,
+    (s.author || sc.length) ? h('div.row', { style: { gap: '8px' } }, s.author ? h('span.muted', s.author) : null, sc.map(c => catChip(c))) : null,
     h('div.meta-grid',
-      h('div.meta', h('small', 'Тональность'), h('b', target || '—'), st.steps && s.key ? h('span.small.muted', ` из ${s.key}`) : null),
+      h('div.meta', h('small', 'Тональность'), h('b', target || '—'), target !== main && main ? h('span.small.muted', ` · основная ${main}`) : null),
       h('div.meta', h('small', 'Размер'), h('b', s.meter || '—')),
-      h('div.meta', h('small', 'Темп'), h('b', s.bpm ? `${s.bpm}` : '—'), s.bpm ? h('span.small.muted', ' BPM') : null))));
+      h('div.meta', h('small', 'Темп'), h('b', s.bpm ? `${s.bpm}` : '—'), s.bpm ? h('span.small.muted', ' BPM') : null)),
+    h('div.note', icon('clock', 18), h('div',
+      hist.last
+        ? h('span', 'Последний раз на служении: ', h('b', `${fmt.short(hist.last.date)}`), ` (${ago(hist.last.date)})`, hist.count > 1 ? ` · всего ${hist.count} ${plural(hist.count, ['раз', 'раза', 'раз'])}` : '')
+        : h('span', 'На служениях ещё не играли'),
+      hist.next ? h('div', { style: { marginTop: '2px' } }, 'Следующий раз: ', h('b', fmt.short(hist.next.date))) : null))));
 
+  const refresh = () => nav.refresh();
   el.append(h('section.card',
-    seg([['both', 'Аккорды и слова'], ['lyrics', 'Слова'], ['chords', 'Аккорды']], st.mode, v => { st.mode = v; nav.refresh(); }, '.full'),
+    seg([['both', 'Аккорды и слова'], ['lyrics', 'Слова'], ['chords', 'Аккорды']], st.mode, v => { st.mode = v; refresh(); }, '.full'),
     h('div.row.between',
       h('span.small.muted', 'Транспонировать'),
       h('div.transp',
-        h('button', { type: 'button', 'aria-label': 'На полтона ниже', onclick: () => { st.steps = Math.max(-11, st.steps - 1); nav.refresh(); } }, icon('minus', 18)),
+        h('button', { type: 'button', 'aria-label': 'На полтона ниже', onclick: () => { st.steps = Math.max(-11, st.steps - 1); refresh(); } }, icon('minus', 18)),
         h('b', target || '—'),
-        h('button', { type: 'button', 'aria-label': 'На полтона выше', onclick: () => { st.steps = Math.min(11, st.steps + 1); nav.refresh(); } }, icon('plus', 18)))),
-    versions.length > 1 ? h('div.row', h('span.small.muted', 'Перевод'), h('div.chips', versions.map((v, i) => h('button.chip', { type: 'button', 'aria-pressed': String(st.v === i), onclick: () => { st.v = i; nav.refresh(); } }, v.label || `Версия ${i + 1}`)))) : null));
+        h('button', { type: 'button', 'aria-label': 'На полтона выше', onclick: () => { st.steps = Math.min(11, st.steps + 1); refresh(); } }, icon('plus', 18)))),
+    S.isLeader && target && target !== main ? h('button.btn.sm.soft', {
+      type: 'button', style: { alignSelf: 'flex-end' },
+      onclick: () => run(() => put('songs', { ...s, playKey: target }, s.id), `Теперь основная тональность — ${target}`),
+    }, `Сделать ${target} основной`) : null,
+    st.mode !== 'lyrics' && target ? capoControl(s.id, target, refresh) : null,
+    versions.length > 1 ? h('div.row', h('span.small.muted', 'Перевод'), h('div.chips', versions.map((v, i) => h('button.chip', { type: 'button', 'aria-pressed': String(st.v === i), onclick: () => { st.v = i; refresh(); } }, v.label || `Версия ${i + 1}`)))) : null));
 
   if (s.arrangement || s.notes) {
     el.append(h('section.card',
@@ -83,25 +136,48 @@ export function renderSong(el, { id, key }, nav) {
     safeUrl(s.youtube) ? linkBtn(safeUrl(s.youtube), 'YouTube') : null,
     h('button.btn.soft.sm', { type: 'button', onclick: () => copyText(lyricsOnly(versions[st.v].text), 'Текст скопирован') }, icon('copy', 16), 'Текст для проектора')));
 
-  el.append(textBox);
-  paintText();
+  const text = versions[st.v].text;
+  el.append(h('section.card',
+    capo.on && st.mode !== 'lyrics' ? h('span.chip.ink', { style: { alignSelf: 'flex-start' } }, icon('capo', 14, 2), `Капо ${capo.fret} · формы ${capo.shape} · звучит ${target}`) : null,
+    text.trim()
+      ? renderText(text, { mode: st.mode, steps: st.steps - (capo.on ? capo.fret : 0), flats: prefersFlats(shown) })
+      : h('p.muted', 'Текст ещё не добавлен.')));
 }
 
 export function openSongEditor(nav, existing) {
   const st = existing ? JSON.parse(JSON.stringify(existing)) : {
-    title: '', author: '', key: 'G', bpm: '', meter: '4/4', youtube: '', arrangement: '', notes: '',
+    title: '', author: '', key: 'G', playKey: '', bpm: '', meter: '4/4', youtube: '', arrangement: '', notes: '', cats: [],
     versions: [{ label: 'Русский', text: '' }],
   };
   if (!st.versions || !st.versions.length) st.versions = [{ label: 'Русский', text: '' }];
+  st.cats = st.cats || [];
+  if (!st.playKey) st.playKey = st.key || '';
 
   sheet(existing ? 'Изменить песню' : 'Новая песня', (b, ctx) => {
+    const cats = categoriesSorted();
     b.append(
       field('Название', h('input#so-title', { value: st.title, placeholder: 'Название песни', oninput: e => (st.title = e.target.value) })),
       field('Автор', h('input#so-author', { value: st.author || '', placeholder: 'Автор или группа', oninput: e => (st.author = e.target.value) })),
-      h('div.grid3',
-        field('Тон', h('select#so-key', { value: st.key || '', onchange: e => (st.key = e.target.value) }, h('option', { value: '' }, '—'), ALL_KEYS.map(k => h('option', { value: k }, k)))),
+      h('div.grid2',
+        field('Аккорды записаны в', h('select#so-key', {
+          value: st.key || '', onchange: e => { const was = st.key; st.key = e.target.value; if (!st.playKey || st.playKey === was) st.playKey = st.key; ctx.paint(); },
+        }, h('option', { value: '' }, '—'), ALL_KEYS.map(k => h('option', { value: k }, k)))),
+        field('Играем в (основная)', h('select#so-play', { value: st.playKey || '', disabled: !st.key, onchange: e => (st.playKey = e.target.value) },
+          st.key ? keyChoices(st.key).map(k => h('option', { value: k }, k + (k === st.key ? ' (как записано)' : ''))) : h('option', { value: '' }, '—')))),
+      h('p.hint', { style: { marginTop: '-6px' } }, 'Основная тональность открывается сразу в песне и подставляется в новые служения.'),
+      h('div.grid2',
         field('Размер', h('select#so-meter', { value: st.meter || '4/4', onchange: e => (st.meter = e.target.value) }, ['4/4', '3/4', '6/8', '2/4', '12/8'].map(m => h('option', { value: m }, m)))),
         field('BPM', h('input#so-bpm', { type: 'number', inputmode: 'numeric', min: 30, max: 240, value: st.bpm || '', oninput: e => (st.bpm = e.target.value) }))),
+      h('div.fld', h('span', 'Категории'),
+        h('div.chips',
+          cats.map(c => h('button.chip.cat', {
+            type: 'button', style: { '--cat': c.color, height: '34px', padding: '0 12px', fontSize: '13px' }, 'aria-pressed': String(st.cats.includes(c.id)),
+            onclick: () => { st.cats = st.cats.includes(c.id) ? st.cats.filter(x => x !== c.id) : [...st.cats, c.id]; ctx.paint(); },
+          }, h('span.cat-dot'), c.name)),
+          h('button.chip.line', {
+            type: 'button', style: { height: '34px', padding: '0 12px', fontSize: '13px' },
+            onclick: () => openCategoryEditor(null, id => { if (id && !st.cats.includes(id)) st.cats.push(id); setTimeout(ctx.paint, 150); }),
+          }, icon('plus', 14, 2.2), 'Новая'))),
       field('Ссылка на YouTube', h('input#so-yt', { type: 'url', value: st.youtube || '', placeholder: 'https://youtube.com/…', oninput: e => (st.youtube = e.target.value) })),
       field('Порядок частей', h('input#so-arr', { value: st.arrangement || '', placeholder: 'К1 · П · К2 · П · Б · П', oninput: e => (st.arrangement = e.target.value) })),
       field('Партии', h('textarea#so-notes', { value: st.notes || '', placeholder: 'Вокальные партии, кто что играет, динамика', oninput: e => (st.notes = e.target.value) })),
@@ -125,8 +201,9 @@ export function openSongEditor(nav, existing) {
           type: 'button', onclick: async () => {
             if (!st.title.trim()) return toast('Введите название');
             const doc = {
-              title: st.title.trim(), author: (st.author || '').trim(), key: st.key || '', meter: st.meter || '4/4',
-              bpm: st.bpm ? Number(st.bpm) : '', youtube: (st.youtube || '').trim(), arrangement: st.arrangement || '', notes: st.notes || '',
+              title: st.title.trim(), author: (st.author || '').trim(), key: st.key || '', playKey: st.playKey || st.key || '',
+              meter: st.meter || '4/4', bpm: st.bpm ? Number(st.bpm) : '', youtube: (st.youtube || '').trim(),
+              arrangement: st.arrangement || '', notes: st.notes || '', cats: st.cats.filter(id => S.categories.some(c => c.id === id)),
               versions: st.versions.map(v => ({ label: (v.label || '').trim() || 'Текст', text: v.text || '' })),
               createdAt: st.createdAt || Date.now(),
             };

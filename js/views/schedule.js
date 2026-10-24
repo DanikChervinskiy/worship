@@ -139,7 +139,7 @@ export function renderService(el, { id }, nav) {
     ? h('div.list', songs.map((x, i) => h('button.li', { type: 'button', onclick: () => nav.push('song', { id: x.songId, key: x.key }) },
       h('span.num', i + 1),
       h('div.li-main', h('div.li-t', x.song.title), h('div.li-s', [x.song.meter, x.song.bpm ? `${x.song.bpm} BPM` : '', x.song.author].filter(Boolean).join(' · '))),
-      h('span.key-badge', x.key || x.song.key || '—'))))
+      h('span.key-badge', x.key || x.song.playKey || x.song.key || '—'))))
     : h('div.list', empty('music', 'Песни не выбраны', S.isLeader ? 'Откройте редактор и добавьте песни из базы.' : null)));
 
   // Состав
@@ -318,12 +318,12 @@ export function openServiceEditor(nav, existing, preset = {}) {
           h('span.num', i + 1),
           h('select', {
             id: 'se-song-' + i, 'aria-label': `Песня ${i + 1}`, value: it.songId,
-            onchange: e => { it.songId = e.target.value; const s2 = song(it.songId); it.key = s2 ? s2.key || '' : ''; ctx.paint(); },
+            onchange: e => { it.songId = e.target.value; const s2 = song(it.songId); it.key = s2 ? s2.playKey || s2.key || '' : ''; ctx.paint(); },
           }, h('option', { value: '' }, 'Выберите песню'), songsList.map(s2 => h('option', { value: s2.id }, s2.title))),
           h('select', {
-            id: 'se-key-' + i, 'aria-label': 'Тональность', value: it.key || (sg ? sg.key : ''), disabled: !sg,
+            id: 'se-key-' + i, 'aria-label': 'Тональность', value: it.key || (sg ? sg.playKey || sg.key : ''), disabled: !sg,
             onchange: e => (it.key = e.target.value),
-          }, sg ? keyChoices(sg.key).map(k => h('option', { value: k }, k + (k === sg.key ? ' •' : ''))) : h('option', { value: '' }, '—')));
+          }, sg ? keyChoices(sg.key).map(k => h('option', { value: k }, k + (k === (sg.playKey || sg.key) ? ' •' : ''))) : h('option', { value: '' }, '—')));
       }),
       h('div.divider'),
       h('div', h('b', 'Состав'), existing ? h('div.small.muted', '✓ — отметили «смогу», ✗ — «не смогу»') : null),
@@ -371,7 +371,7 @@ export function openServiceEditor(nav, existing, preset = {}) {
       date: st.date, time: st.time || '', title: (st.title || '').trim() || 'Служение',
       kind: st.eventId ? 'event' : 'service', eventId: st.eventId || '',
       rehearsal: hasReh ? { date: st.rehearsal.date, time: st.rehearsal.time } : null,
-      songs: st.songs.filter(x => x.songId).map(x => ({ songId: x.songId, key: x.key || (song(x.songId) || {}).key || '' })),
+      songs: st.songs.filter(x => x.songId).map(x => { const s2 = song(x.songId) || {}; return { songId: x.songId, key: x.key || s2.playKey || s2.key || '' }; }),
       team: {}, note: st.note || '', published: !!st.published,
     };
     if (existing && existing.demo) doc.demo = true;

@@ -1,13 +1,13 @@
 // Сервис-воркер: приложение открывается без интернета, а push-уведомления приходят, даже когда оно закрыто.
 // После изменения файлов приложения увеличьте VERSION — телефоны подтянут новую версию.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL = `shell-${VERSION}`;
 const RUNTIME = 'runtime-v1';
 
 const FILES = [
   './', './index.html', './manifest.webmanifest', './firebase-config.js',
   './css/app.css',
-  './js/main.js', './js/store.js', './js/model.js', './js/ui.js', './js/dates.js', './js/chords.js', './js/demo.js', './js/projector.js', './js/pull.js',
+  './js/main.js', './js/store.js', './js/model.js', './js/ui.js', './js/dates.js', './js/chords.js', './js/demo.js', './js/projector.js', './js/pull.js', './js/capo.js', './js/categories.js',
   './js/views/home.js', './js/views/schedule.js', './js/views/songs.js', './js/views/perform.js', './js/views/more.js',
   './js/views/team.js', './js/views/suggestions.js', './js/views/study.js', './js/views/tasks.js', './js/views/warmups.js',
   './js/views/feedback.js', './js/views/profile.js', './js/views/auth.js',

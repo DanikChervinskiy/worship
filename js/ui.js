@@ -11,7 +11,7 @@ export function h(sel, ...args) {
       if (v == null || v === false || k === 'value') continue;
       if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
       else if (k === 'class') String(v).split(' ').filter(Boolean).forEach(c => el.classList.add(c));
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) el.style.setProperty(sk, sv); else el.style[sk] = sv; }
       else if (k === 'checked' || k === 'selected' || k === 'disabled') el[k] = !!v;
       else el.setAttribute(k, v === true ? '' : v);
     }
@@ -67,6 +67,8 @@ const ICONS = {
   cloud: 'M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z',
   ext: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
   refresh: 'M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4',
+  capo: 'M6 3v18M10 3v18M14 3v18M18 3v18M3 9h18v4H3z',
+  tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
 };
 
 export function icon(name, size = 22, stroke = 1.8) {

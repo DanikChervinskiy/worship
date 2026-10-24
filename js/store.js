@@ -6,7 +6,7 @@
 import { buildDemo } from './demo.js';
 import { toast, errText } from './ui.js';
 
-export const COLLS = ['songs', 'services', 'events', 'members', 'feed', 'suggestions', 'lessons', 'tasks', 'warmups'];
+export const COLLS = ['songs', 'services', 'events', 'members', 'feed', 'suggestions', 'lessons', 'tasks', 'warmups', 'categories'];
 // «Личные» коллекции: один документ на человека, id документа = id пользователя.
 export const MINE = ['avail', 'votes', 'links', 'notes', 'feedback'];
 const FS_NAME = { links: 'access' }; // привязка аккаунта к служителю хранится в коллекции access

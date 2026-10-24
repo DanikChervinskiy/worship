@@ -6,6 +6,7 @@ import { service, svcSongs, svcTitle, rolesIn, me } from '../model.js';
 import { renderSong, transposeKey, semitones, prefersFlats } from '../chords.js';
 import { fmt } from '../dates.js';
 import { defaultMode } from './songs.js';
+import { capoControl, capoState } from '../capo.js';
 import { warmupList } from './warmups.js';
 
 export function render(el, { id }, nav) {
@@ -40,10 +41,11 @@ export function render(el, { id }, nav) {
     const paint = () => {
       const versions = (x.song.versions && x.song.versions.length) ? x.song.versions : [{ label: 'Текст', text: '' }];
       const vi = Math.min(prefs.v[key] || 0, versions.length - 1);
-      const baseKey = x.key || x.song.key;
+      const baseKey = x.key || x.song.playKey || x.song.key;
       const targetKey = prefs.k[key] || baseKey;
       const steps = semitones(x.song.key, targetKey);
       const mode = prefs.m[key] || defMode;
+      const capo = mode !== 'lyrics' ? capoState(x.song.id, targetKey) : { on: false, fret: 0 };
       const shiftKey = d => { prefs.k[key] = transposeKey(targetKey, d); save(); paint(); };
       fill(sec,
         h('div.psong-h',
@@ -56,13 +58,14 @@ export function render(el, { id }, nav) {
             h('button', { type: 'button', 'aria-label': 'Ниже', onclick: () => shiftKey(-1) }, icon('minus', 16)),
             h('b', targetKey || '—'),
             h('button', { type: 'button', 'aria-label': 'Выше', onclick: () => shiftKey(1) }, icon('plus', 16))) : null,
+          mode !== 'lyrics' && targetKey ? capoControl(x.song.id, targetKey, paint) : null,
           versions.length > 1 ? h('select', {
             'aria-label': 'Перевод', style: { width: 'auto', minHeight: '40px', fontSize: '14px' }, value: String(vi),
             onchange: e => { prefs.v[key] = Number(e.target.value); save(); paint(); },
           }, versions.map((v, k) => h('option', { value: String(k) }, v.label || `Версия ${k + 1}`))) : null),
         x.song.arrangement && mode !== 'lyrics' ? h('p.small.mono.muted', x.song.arrangement) : null,
         versions[vi].text.trim()
-          ? renderSong(versions[vi].text, { mode, steps, flats: prefersFlats(targetKey) })
+          ? renderSong(versions[vi].text, { mode, steps: steps - capo.fret * (capo.on ? 1 : 0), flats: prefersFlats(capo.on ? capo.shape : targetKey) })
           : h('p.muted', 'Текст ещё не добавлен.'));
     };
     paint();
