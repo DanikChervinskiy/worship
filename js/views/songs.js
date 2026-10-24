@@ -207,6 +207,7 @@ export function openSongEditor(nav, existing) {
               arrangement: st.arrangement || '', notes: st.notes || '', cats: st.cats.filter(id => S.categories.some(c => c.id === id)),
               versions: st.versions.map(v => ({ label: (v.label || '').trim() || 'Текст', text: v.text || '' })),
               createdAt: st.createdAt || Date.now(),
+              capo: st.capo || null,
             };
             if (existing && existing.demo) doc.demo = true;
             let id;
