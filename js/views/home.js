@@ -23,7 +23,7 @@ export function render(el, p, nav) {
   el.append(h('header.top',
     h('div.stack', { style: { gap: '6px' } },
       h('p.eyebrow', greeting() + (M.member ? `, ${M.member.name}` : '')),
-      h('h1.display', 'Служим', h('br'), h('span.soft', 'вместе'))),
+      h('h1.display', 'Living', h('br'), h('span.soft', 'Spring'))),
     h('div.top-actions',
       h('button.iconbtn', { type: 'button', onclick: () => nav.push('feed'), 'aria-label': 'Уведомления' },
         icon('bell'), unread ? h('span.dot', unread > 9 ? '9+' : unread) : null),

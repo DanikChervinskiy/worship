@@ -23,7 +23,7 @@ const authErr = e => AUTH_ERR[e && e.code] || 'Не получилось. Поп
 function brand() {
   return h('header.top', h('div.stack', { style: { gap: '6px' } },
     h('p.eyebrow', 'Команда прославления'),
-    h('h1.display', 'Служим', h('br'), h('span.soft', 'вместе'))));
+    h('h1.display', 'Living', h('br'), h('span.soft', 'Spring'))));
 }
 
 export function render(el, p, nav) {
