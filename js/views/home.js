@@ -17,8 +17,9 @@ const greeting = () => {
 export function render(el, p, nav) {
   const M = me();
   const feed = feedFor(M.memberId);
-  const seen = ls.get('wt.feedSeen') || 0;
-  const unread = feed.filter(f => (f.at || 0) > seen).length;
+  const rs = readState();
+  const unreadList = feed.filter(f => !isRead(f, rs));
+  const unread = unreadList.length;
 
   el.append(h('header.top',
     h('div.stack', { style: { gap: '6px' } },
@@ -105,11 +106,37 @@ export function render(el, p, nav) {
     tile('.alt', 'Распевки', `${S.warmups.filter(w => w.kind !== 'daily').length} упражнения`, 'mic', () => nav.push('warmups')),
     tile('.dark', 'Все разделы', 'команда, задачи, отзывы', 'grid', () => nav.go('more'))));
 
-  // Лента
-  el.append(h('div.sec-h', h('h2.h2', 'Лента'), feed.length ? h('button.link', { type: 'button', onclick: () => nav.push('feed') }, 'Все') : null));
-  el.append(feed.length
-    ? h('div.list', feed.slice(0, 4).map(f => feedItem(f, seen, nav)))
-    : h('div.list', empty('bell', 'Пока тихо', 'Здесь появятся объявления о служениях и изменениях в составе.')));
+  // Лента: на главной висят только непрочитанные
+  el.append(h('div.sec-h',
+    h('h2.h2', 'Лента', unread ? h('span.chip.ink', { style: { marginLeft: '8px', verticalAlign: 'middle' } }, unread) : null),
+    h('div.row', { style: { gap: '14px' } },
+      unread > 1 ? h('button.link', { type: 'button', onclick: () => markAllRead(feed, nav) }, 'Прочитать все') : null,
+      feed.length ? h('button.link', { type: 'button', onclick: () => nav.push('feed') }, 'Все') : null)));
+  el.append(unread
+    ? h('div.list', unreadList.slice(0, 4).map(f => feedItem(f, rs, nav)))
+    : h('div.list', feed.length
+      ? empty('check', 'Всё прочитано', 'Новые объявления появятся здесь.', h('button.btn.ghost.sm', { type: 'button', onclick: () => nav.push('feed') }, 'Все уведомления'))
+      : empty('bell', 'Пока тихо', 'Здесь появятся объявления о служениях и изменениях в составе.')));
+}
+
+/* ——— прочитанные уведомления (хранятся на этом устройстве) ——— */
+const READ_KEY = 'wt.feedRead';
+function readState() {
+  const r = ls.get(READ_KEY);
+  if (r && Array.isArray(r.ids)) return r;
+  return { all: ls.get('wt.feedSeen') || 0, ids: [] };
+}
+const isRead = (f, r) => (f.at || 0) <= (r.all || 0) || r.ids.includes(f.id);
+function markRead(id, nav) {
+  const r = readState();
+  if (!r.ids.includes(id)) r.ids = [...r.ids, id].slice(-300);
+  ls.set(READ_KEY, r);
+  nav.refresh();
+}
+function markAllRead(feed, nav) {
+  const latest = Math.max(0, ...feed.map(f => f.at || 0));
+  ls.set(READ_KEY, { all: Math.max(latest, readState().all || 0), ids: [] });
+  nav.refresh();
 }
 
 function hero(svc, M, nav) {
@@ -223,28 +250,34 @@ function dailyCard(nav) {
       h('button.btn.ghost', { type: 'button', onclick: () => nav.push('warmups') }, 'Упражнения')));
 }
 
-function feedItem(f, seen, nav) {
+function feedItem(f, rs, nav) {
   const svc = f.serviceId ? service(f.serviceId) : null;
-  return h(svc ? 'button.feed-i' : 'div.feed-i', {
-    class: (f.at || 0) > seen ? 'new' : '', type: svc ? 'button' : null,
-    style: { width: '100%', textAlign: 'left' },
-    onclick: svc ? () => nav.push('service', { id: svc.id }) : null,
-  },
+  const read = isRead(f, rs);
+  const content = [
+    h('div.feed-t', f.title), f.body ? h('div.feed-b', f.body) : null,
+    h('div.feed-m', fmt.stamp(f.at || Date.now()) + (S.isLeader && Array.isArray(f.to) ? ` · лично: ${f.to.map(id => (member(id) || {}).name).filter(Boolean).join(', ')}` : '')),
+  ];
+  return h('div.feed-i' + (read ? '.read' : '.new'),
     h('span.feed-dot'),
-    h('div', h('div.feed-t', f.title), f.body ? h('div.feed-b', f.body) : null,
-      h('div.feed-m', fmt.stamp(f.at || Date.now()) + (S.isLeader && Array.isArray(f.to) ? ` · лично: ${f.to.map(id => (member(id) || {}).name).filter(Boolean).join(', ')}` : ''))));
+    h('div', { style: { minWidth: '0' } },
+      svc
+        ? h('button.feed-open', { type: 'button', onclick: () => { if (!read) markRead(f.id, nav); nav.push('service', { id: svc.id }); } }, content)
+        : h('div', content),
+      !read ? h('button.feed-read', { type: 'button', onclick: () => markRead(f.id, nav) }, icon('check', 14, 2.4), 'Прочитать') : null));
 }
 
 export function renderFeed(el, p, nav) {
   const M = me();
   const feed = feedFor(M.memberId);
-  const seen = ls.get('wt.feedSeen') || 0;
+  const rs = readState();
+  const unread = feed.filter(f => !isRead(f, rs)).length;
   el.append(bar('Уведомления', nav, S.isLeader ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Написать команде', onclick: openNotify }, icon('send', 20))] : []));
-  el.append(feed.length ? h('div.list', feed.map(f => feedItem(f, seen, nav)))
+  if (feed.length) el.append(h('div.row.between',
+    h('span.small.muted', unread ? `Непрочитанных: ${unread}` : 'Все уведомления прочитаны'),
+    unread ? h('button.btn.sm.soft', { type: 'button', onclick: () => markAllRead(feed, nav) }, icon('check', 16, 2.2), 'Прочитать все') : null));
+  el.append(feed.length ? h('div.list', feed.map(f => feedItem(f, rs, nav)))
     : h('div.list', empty('bell', 'Уведомлений нет', 'Сюда приходят объявления о служениях и изменениях в составе.')));
   el.append(h('p.hint', { style: { padding: '0 4px' } }, 'Важные уведомления также приходят на телефон, если включить их в профиле.'));
-  const latest = feed.length ? Math.max(...feed.map(f => f.at || 0)) : 0;
-  if (latest > seen) ls.set('wt.feedSeen', latest);
 }
 
 export function openNotify() {
