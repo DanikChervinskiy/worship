@@ -13,7 +13,9 @@ export const ALL_KEYS = [...MAJOR_NAMES, ...MINOR_NAMES];
 
 const CHORD_RE = /^([A-H])([#b]?)([^/\s]*)(?:\/([A-H])([#b]?))?$/;
 const QUAL_RE = /^(maj|min|dim|aug|sus|add|m|M|\d|\+|-|\(|\)|#|b|°|ø|\*)*$/;
-const SECTION_RE = /^(куплет|припев|пред-?припев|бридж|мост|проигрыш|вступление|интро|кода|окончание|концовка|тэг|тег|verse|chorus|pre-?chorus|bridge|intro|outro|tag|interlude|instrumental)[\s\d.]*:?\s*$/i;
+// Названия частей песни: русские, украинские и английские, с номером до или после («1 Куплет», «Приспів 2», «Бридж x2»).
+const SECTION_WORDS = 'куплет|запев|припев|пред-?припев|приспів|пр[иі]спів|пред-?приспів|перед-?приспів|пре-?приспів|бридж|брідж|мост|міст|проигрыш|програш|вступление|вступ|интро|інтро|кода|окончание|концовка|закінчення|кінцівка|тэг|тег|аутро|verse|chorus|pre-?chorus|bridge|intro|outro|tag|interlude|instrumental|ending|solo|соло';
+const SECTION_RE = new RegExp(`^(\\d+\\s*[-.)]?\\s*)?(${SECTION_WORDS})(?=[\\s\\d.:×xх(]|$)[\\s\\d.]*([×xх]\\s*\\d+)?\\s*(\\(.*\\))?\\s*:?\\s*$`, 'i');
 
 export function isChord(tok) {
   const m = CHORD_RE.exec(tok);
@@ -72,6 +74,8 @@ function sectionName(line) {
   let m = /^#\s*(.+)$/.exec(t); if (m) return m[1];
   m = /^\{\s*(.+?)\s*\}$/.exec(t); if (m) return m[1];
   if (SECTION_RE.test(t)) return t.replace(/:\s*$/, '');
+  // Короткая строка без аккордов, которая кончается двоеточием: «Інтро:», «Тег:», «Кінець:».
+  if (/:\s*$/.test(t) && !/\[/.test(t) && t.length <= 28 && t.split(/\s+/).length <= 3) return t.replace(/:\s*$/, '');
   return null;
 }
 

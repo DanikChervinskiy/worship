@@ -1,7 +1,7 @@
 // Режим служения: все песни подряд, листаешь вниз или жмёшь «Далее».
 // Вокалисту по умолчанию — слова, музыканту — аккорды со словами. Каждую песню можно переключить.
 import { ls } from '../store.js';
-import { h, icon, sheet, seg, empty, bar, fill } from '../ui.js';
+import { h, icon, sheet, seg, empty, bar, fill, toast } from '../ui.js';
 import { service, svcSongs, svcTitle, rolesIn, me } from '../model.js';
 import { renderSong, transposeKey, semitones, prefersFlats } from '../chords.js';
 import { fmt } from '../dates.js';
@@ -99,6 +99,31 @@ export function render(el, { id }, nav) {
   const onScroll = () => requestAnimationFrame(update);
   window.addEventListener('scroll', onScroll, { passive: true });
 
+  // Двойной тап по тексту — к следующей песне (по кнопкам и полям не срабатывает).
+  const goNext = () => {
+    const i = current();
+    if (i < items.length - 1) sections[i + 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else toast('Это последняя песня');
+  };
+  const interactive = t => t.closest && t.closest('button, a, select, input, textarea, label, .sheet-wrap');
+  let lastTap = 0, lastX = 0, lastY = 0;
+  const onTouchEnd = e => {
+    if (e.touches.length || e.changedTouches.length !== 1 || interactive(e.target)) return;
+    const t = e.changedTouches[0];
+    const now = Date.now();
+    if (now - lastTap < 320 && Math.abs(t.clientX - lastX) < 40 && Math.abs(t.clientY - lastY) < 40) {
+      e.preventDefault(); // не даём телефону увеличить масштаб
+      lastTap = 0;
+      goNext();
+      return;
+    }
+    lastTap = now; lastX = t.clientX; lastY = t.clientY;
+  };
+  const onDbl = e => { if (!interactive(e.target)) { e.preventDefault(); goNext(); } };
+  el.addEventListener('touchend', onTouchEnd, { passive: false });
+  el.addEventListener('dblclick', onDbl);
+  if (!ls.get('wt.dblHint')) { ls.set('wt.dblHint', 1); setTimeout(() => toast('Двойной тап по тексту — следующая песня'), 600); }
+
   // Экран не гаснет, пока открыт режим служения (если браузер разрешает).
   let lock = null;
   const askLock = async () => { try { if (navigator.wakeLock && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); } catch { lock = null; } };
@@ -112,6 +137,8 @@ export function render(el, { id }, nav) {
 
   return () => {
     window.removeEventListener('scroll', onScroll);
+    el.removeEventListener('touchend', onTouchEnd);
+    el.removeEventListener('dblclick', onDbl);
     document.removeEventListener('visibilitychange', onVis);
     try { lock && lock.release(); } catch { /* */ }
     document.body.classList.remove('perform');

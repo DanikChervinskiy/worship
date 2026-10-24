@@ -332,6 +332,7 @@ button.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 
 /* ——— perform mode ——— */
 body.perform #tabbar { display: none; }
+body.perform #view { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 body.perform #app { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
 .pbar {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6;
