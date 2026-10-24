@@ -32,7 +32,12 @@ service cloud.firestore {
     }
 
     // Общие данные: читает команда, меняет лидер.
-    match /songs/{id}    { allow read: if isMember(); allow write: if isLeader(); }
+    // Песни меняет лидер; каподастр (поле capo) может настроить любой участник.
+    match /songs/{id} {
+      allow read: if isMember();
+      allow write: if isLeader();
+      allow update: if isMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['capo', 'u']);
+    }
     match /services/{id} { allow read: if isMember(); allow write: if isLeader(); }
     match /events/{id}   { allow read: if isMember(); allow write: if isLeader(); }
     match /members/{id}  { allow read: if isMember(); allow write: if isLeader(); }
