@@ -1,9 +1,10 @@
-// Каподастр: любой участник команды выбирает, какими формами играть песню (например, формы D),
-// и это сохраняется в самой песне — у всех одинаково. Лад считается сам: песня звучит в F#, формы D → капо 4.
+// Каподастр: лидер или тот, у кого есть право «Песни и категории», выбирает формы аккордов (например, формы D).
+// Настройка сохраняется в самой песне — у всей команды одинаково. Остальные видят её, но не меняют.
+// Лад считается сам: песня звучит в F#, формы D → капо 4.
 import { patch } from './store.js';
 import { h, icon, sheet, run } from './ui.js';
 import { transposeKey, semitones } from './chords.js';
-import { song } from './model.js';
+import { song, can } from './model.js';
 
 // Лад каподастра: насколько звучащая тональность выше формы (0–11).
 export const fretFor = (target, shape) => ((semitones(shape, target) % 12) + 12) % 12;
@@ -25,19 +26,29 @@ async function saveCapo(songId, capo) {
 // Кнопка-переключатель и подпись. onChange вызывается после любого изменения.
 export function capoControl(songId, target, onChange) {
   const st = capoState(songId, target);
+  const label = !st.saved ? 'Каподастр…'
+    : st.fret ? `Капо ${st.fret} · формы ${st.shape}` : `Формы ${st.shape} · без капо`;
+
+  // Без права «Песни и категории» — только посмотреть настройку.
+  if (!can('songs')) {
+    if (!st.saved) return null;
+    return h('div.capo',
+      h('span.capo-btn', { 'aria-hidden': 'true', class: st.on ? 'is-on' : '' }, icon('capo', 18, 2)),
+      h('span.capo-label', { style: { textDecoration: 'none' } }, st.on ? label : `${label} · выключен`));
+  }
+
   const toggle = async () => {
     if (!st.saved) return openCapoChooser(songId, target, onChange);
     await saveCapo(songId, { shape: st.shape, on: !st.teamOn });
     onChange();
   };
-  const label = !st.saved ? 'Каподастр…'
-    : st.fret ? `Капо ${st.fret} · формы ${st.shape}` : `Формы ${st.shape} · без капо`;
   return h('div.capo',
     h('button.capo-btn', { type: 'button', 'aria-pressed': String(st.on), 'aria-label': st.on ? 'Выключить каподастр' : 'Включить каподастр', title: 'Каподастр', onclick: toggle }, icon('capo', 18, 2)),
     h('button.capo-label', { type: 'button', onclick: () => openCapoChooser(songId, target, onChange) }, label));
 }
 
 export function openCapoChooser(songId, target, onChange) {
+  if (!can('songs')) return;
   const cur = capoState(songId, target);
   sheet('Каподастр', (b, ctx) => {
     b.append(

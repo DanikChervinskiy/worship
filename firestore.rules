@@ -35,12 +35,8 @@ service cloud.firestore {
       allow delete: if can('team') || (signedIn() && me() == uid);
     }
 
-    // Песни: меняет право «Песни»; каподастр (поле capo) может настроить любой участник.
-    match /songs/{id} {
-      allow read: if isMember();
-      allow write: if can('songs');
-      allow update: if isMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['capo', 'u']);
-    }
+    // Песни (вместе с каподастром) меняет лидер и право «Песни и категории».
+    match /songs/{id} { allow read: if isMember(); allow write: if can('songs'); }
     match /categories/{id} { allow read: if isMember(); allow write: if can('songs'); }
 
     match /services/{id} { allow read: if isMember(); allow write: if can('schedule'); }
