@@ -36,7 +36,7 @@ const routes = {
   songs: Songs.render, song: Songs.renderSong,
   perform: Perform.render,
   more: More.render, team: Team.render, suggestions: Suggestions.render,
-  study: Study.render, lesson: Study.renderLesson,
+  study: Study.render, lesson: Study.renderLesson, block: Study.renderBlock,
   tasks: Tasks.render, warmups: Warmups.render, feedback: Feedback.render, profile: Profile.render,
 };
 const TAB_OF = { home: 'home', feed: 'home', schedule: 'schedule', service: 'schedule', event: 'schedule', songs: 'songs', song: 'songs', perform: 'schedule' };

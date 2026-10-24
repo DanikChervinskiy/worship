@@ -436,6 +436,24 @@ input[type="checkbox"]:checked::after { content: ""; width: 10px; height: 6px; b
 .tab span { display: none; }
 .tab-plus { justify-self: center; width: 60px; height: 60px; margin-top: -30px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; box-shadow: 0 0 0 6px var(--bg), 0 8px 20px rgba(0, 0, 0, .2); }
 
+/* ——— духовное развитие ——— */
+.block-card { width: 100%; text-align: left; }
+.block-t { font-weight: 700; font-size: 16px; line-height: 1.25; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }
+.progress { flex: 1; min-width: 0; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.progress span { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
+.progress.on-hero { background: var(--hero-line); }
+.progress.on-hero span { background: var(--on-hero); }
+.li > div > .li { padding: 0; }
+.reorder { display: flex; flex-direction: column; }
+.reorder .iconbtn { width: 34px; height: 30px; }
+.reorder .iconbtn:disabled { opacity: .25; }
+.link-row { display: grid; grid-template-columns: 1fr 40px; grid-template-areas: "t x" "u u"; gap: 6px; padding: 10px; border-radius: var(--r-sm); background: var(--surface-2); }
+.link-row > :nth-child(1) { grid-area: t; }
+.link-row > :nth-child(2) { grid-area: u; }
+.link-row > :nth-child(3) { grid-area: x; align-self: center; justify-self: center; }
+.link-row input { background: var(--surface); }
+
 /* ——— категории ——— */
 .chip.cat { --cat: #8B8D98; }
 .cat-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cat, #8B8D98); flex: none; display: inline-block; }

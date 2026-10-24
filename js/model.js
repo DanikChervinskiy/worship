@@ -20,6 +20,9 @@ export const member = id => S.members.find(m => m.id === id);
 export const song = id => S.songs.find(s => s.id === id);
 export const service = id => S.services.find(s => s.id === id);
 export const event = id => S.events.find(e => e.id === id);
+// В коллекции lessons лежат и уроки, и блоки уроков (kind: 'block').
+export const lessonsOnly = () => S.lessons.filter(l => l.kind !== 'block');
+export const lessonBlocks = () => S.lessons.filter(l => l.kind === 'block').sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.title).localeCompare(String(b.title), 'ru'));
 export const category = id => S.categories.find(c => c.id === id);
 export const categoriesSorted = () => [...S.categories].sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'));
 // Цвета категорий: читаются и на светлой, и на тёмной теме.

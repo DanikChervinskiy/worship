@@ -3,7 +3,7 @@ import { S, ls, putMine, loadDemo } from '../store.js';
 import { h, icon, run, sheet, field, avatar, initials, empty, bar, toast } from '../ui.js';
 import {
   me, upcoming, onTeam, rolesIn, roleLabel, svcSongs, feedFor, myAvail, setAvail, svcTitle,
-  membersSorted, member, service, OPERATORS, recentAvail, notify, memberOfUid,
+  membersSorted, member, service, OPERATORS, recentAvail, notify, memberOfUid, lessonsOnly,
 } from '../model.js';
 import { fmt, relDay, daysBetween, today, addDays, plural } from '../dates.js';
 import { openServiceEditor } from './schedule.js';
@@ -99,10 +99,10 @@ export function render(el, p, nav) {
   // Плитки
   const learning = S.suggestions.filter(s => s.status !== 'added').length;
   const notes = (S.notes[S.uid] && S.notes[S.uid].lessons) || {};
-  const doneLessons = S.lessons.filter(l => notes[l.id]).length;
+  const doneLessons = lessonsOnly().filter(l => notes[l.id]).length;
   el.append(h('div.tiles',
     tile('', 'Новые песни', `${learning} в списке`, 'heart', () => nav.push('suggestions')),
-    tile('.alt', 'Духовное развитие', `${doneLessons}/${S.lessons.length} уроков`, 'book', () => nav.push('study')),
+    tile('.alt', 'Духовное развитие', `${doneLessons}/${lessonsOnly().length} уроков`, 'book', () => nav.push('study')),
     tile('.alt', 'Распевки', `${S.warmups.filter(w => w.kind !== 'daily').length} упражнения`, 'mic', () => nav.push('warmups')),
     tile('.dark', 'Все разделы', 'команда, задачи, отзывы', 'grid', () => nav.go('more'))));
 
