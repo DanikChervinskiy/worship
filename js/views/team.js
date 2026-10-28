@@ -67,3 +67,31 @@ function requestsCard() {
           h('button.btn.sm.ghost', { type: 'button', onclick: () => run(() => rejectRequest(r.uid), 'Заявка отклонена') }, 'Отклонить')));
     })));
 }
+
+export function openMemberEditor(existing) {
+  const st = existing ? { name: existing.name, roles: [...(existing.roles || [])] } : { name: '', roles: [] };
+  sheet(existing ? 'Служитель' : 'Новый служитель', (b, ctx) => {
+    b.append(
+      field('Имя', h('input#mb-name', { value: st.name, placeholder: 'Имя', oninput: e => (st.name = e.target.value) })),
+      h('div.fld', h('span', 'Роли — можно несколько'),
+        h('div.chips', ROLES.map(r => h('button.chip', {
+          type: 'button', style: { height: '38px', padding: '0 14px', fontSize: '14px' }, 'aria-pressed': String(st.roles.includes(r.k)),
+          onclick: () => { st.roles = st.roles.includes(r.k) ? st.roles.filter(x => x !== r.k) : [...st.roles, r.k]; ctx.paint(); },
+        }, r.label)))),
+      h('div.btn-row',
+        existing ? h('button.btn.ghost', {
+          type: 'button', 'aria-label': 'Удалить', onclick: () => confirmSheet('Удалить служителя?', `${existing.name} исчезнет из списка команды. В уже составленных служениях появится пометка «Удалённый участник».`, 'Удалить', async () => {
+            ctx.close();
+            await run(() => del('members', existing.id), 'Удалено');
+          }),
+        }, icon('trash', 18)) : null,
+        h('button.btn', {
+          type: 'button', onclick: async () => {
+            if (!st.name.trim()) return toast('Введите имя');
+            const doc = { name: st.name.trim(), roles: st.roles };
+            if (existing && existing.demo) doc.demo = true;
+            if (await run(() => put('members', doc, existing && existing.id), existing ? 'Сохранено' : 'Служитель добавлен')) ctx.close();
+          },
+        }, existing ? 'Сохранить' : 'Добавить')));
+  }, { focus: !existing });
+}
