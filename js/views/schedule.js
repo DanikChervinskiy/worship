@@ -3,7 +3,7 @@ import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, seg, avatar, empty, bar, toast, confirmSheet } from '../ui.js';
 import {
   me, servicesSorted, rolesIn, roleLabel, ROLES, ROLE, svcSongs, svcTitle, svcLabel, myAvail, setAvail, availOf,
-  member, membersSorted, songsSorted, song, service, event, personName, teamMemberIds, teamPeople, notify, OPERATORS, can, isDone } from '../model.js';
+  member, membersSorted, songsSorted, song, songHistory, service, event, personName, teamMemberIds, teamPeople, notify, OPERATORS, can, isDone } from '../model.js';
 import { fmt, weeksOfMonth, today, addDays, parse, nextWeekday, monthKey, plural, relDay, pad } from '../dates.js';
 import { keyChoices } from '../chords.js';
 import { openProjector } from '../projector.js';
@@ -326,10 +326,12 @@ export function openServiceEditor(nav, existing, preset = {}) {
         const sg = it.songId ? song(it.songId) : null;
         return h('div.slot',
           h('span.num', i + 1),
-          h('select', {
-            id: 'se-song-' + i, 'aria-label': `Песня ${i + 1}`, value: it.songId,
-            onchange: e => { it.songId = e.target.value; const s2 = song(it.songId); it.key = s2 ? s2.playKey || s2.key || '' : ''; ctx.paint(); },
-          }, h('option', { value: '' }, 'Выберите песню'), songsList.map(s2 => h('option', { value: s2.id }, s2.title))),
+          h('button.song-pick' + (sg ? '' : '.empty'), {
+            type: 'button', id: 'se-song-' + i, 'aria-label': `Песня ${i + 1}`,
+            onclick: () => pickSong(st.songs.map(x => x.songId).filter(Boolean), id => {
+              it.songId = id; const s2 = song(id); it.key = s2 ? s2.playKey || s2.key || '' : ''; ctx.paint();
+            }, !!sg && (() => { it.songId = ''; it.key = ''; ctx.paint(); })),
+          }, h('span.ellip', sg ? sg.title : 'Выберите песню'), icon('search', 16)),
           h('select', {
             id: 'se-key-' + i, 'aria-label': 'Тональность', value: it.key || (sg ? sg.playKey || sg.key : ''), disabled: !sg,
             onchange: e => (it.key = e.target.value),
@@ -398,4 +400,31 @@ export function openServiceEditor(nav, existing, preset = {}) {
     }, isNew ? 'Служение создано' : 'Сохранено');
     if (ok) { ctx.close(); if (isNew) nav.push('service', { id }); }
   }
+}
+
+// Выбор песни для служения: поиск по названию, автору и строчкам;
+// у каждой видно тональность и когда играли последний раз.
+function pickSong(taken, onPick, onClear) {
+  let q = '';
+  sheet('Выбор песни', (b, ctx) => {
+    const list = h('div.list.pick-list');
+    const paint = () => {
+      const t = q.trim().toLowerCase();
+      const found = songsSorted().filter(s2 => !t || [s2.title, s2.author, ...(s2.versions || []).map(v => v.text)].join(' ').toLowerCase().includes(t));
+      list.replaceChildren(...(found.length ? found.slice(0, 80).map(s2 => {
+        const hist = songHistory(s2.id);
+        const used = taken.includes(s2.id);
+        return h('button.li', { type: 'button', onclick: () => { ctx.close(); onPick(s2.id); } },
+          h('span.key-badge', s2.playKey || s2.key || '—'),
+          h('div.li-main', h('div.li-t', s2.title),
+            h('div.li-s.ellip', [s2.author, hist.last ? `играли ${fmt.dayShort(hist.last.date)}` : 'ещё не играли'].filter(Boolean).join(' · '))),
+          used ? h('span.chip', 'уже в списке') : null);
+      }) : [h('p.muted', { style: { padding: '16px' } }, S.songs.length ? 'Ничего не нашлось. Попробуйте другое слово.' : 'В базе пока нет песен.')]));
+    };
+    b.append(
+      h('div.search', icon('search', 18), h('input#pick-q', { type: 'search', placeholder: 'Название, автор или строчка', value: q, oninput: e => { q = e.target.value; paint(); } })),
+      list,
+      onClear ? h('button.btn.ghost', { type: 'button', onclick: () => { ctx.close(); onClear(); } }, 'Убрать песню из этого места') : null);
+    paint();
+  }, { focus: true });
 }

@@ -532,3 +532,11 @@ button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ——— выбор песни в служении ——— */
+.song-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; padding: 0 12px 0 14px; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); text-align: left; min-width: 0; font-size: 15px; font-weight: 600; }
+.song-pick.empty { color: var(--muted); font-weight: 500; }
+.song-pick svg { flex: none; color: var(--muted); }
+.pick-list { max-height: 60dvh; overflow-y: auto; background: var(--surface-2); }
+.pick-list .li + .li { border-top-color: var(--surface); }
+.sheet .search input { background: var(--surface-2); }
