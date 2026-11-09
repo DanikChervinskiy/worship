@@ -274,6 +274,14 @@ export function openEventEditor(nav, existing) {
 
 /* ——— Редактор служения ——— */
 
+// Шаблоны названий. По дню недели шаблон выбирается сам: воскресенье — воскресное, четверг — вечернее.
+const TEMPLATES = [
+  { k: 'sunday', label: 'Воскресное', title: 'Воскресное служение', time: '10:00', dow: 0 },
+  { k: 'evening', label: 'Вечернее', title: 'Вечернее служение', time: '18:30', dow: 4 },
+];
+const tplByTitle = t => (TEMPLATES.find(x => x.title === t) || {}).k || 'custom';
+const tplByDate = d => (TEMPLATES.find(x => x.dow === parse(d).getDay()) || {}).k || null;
+
 export function openServiceEditor(nav, existing, preset = {}) {
   const isNew = !existing;
   const date0 = preset.date || nextWeekday(0);
@@ -282,6 +290,17 @@ export function openServiceEditor(nav, existing, preset = {}) {
     eventId: preset.eventId || '', rehearsal: { date: addDays(date0, -1), time: '18:00' },
     songs: [], team: {}, note: '', published: false,
   };
+  let tpl = tplByTitle(st.title);
+  let tplManual = !isNew || !!preset.title;   // шаблон выбран вручную — дата его больше не меняет
+  let customTitle = tpl === 'custom' ? st.title : '';
+  const applyTpl = k => {
+    tpl = k;
+    const t = TEMPLATES.find(x => x.k === k);
+    if (t) { st.title = t.title; if (isNew && !timeTouched) st.time = t.time; }
+    else st.title = customTitle;
+  };
+  let timeTouched = !!preset.time;
+  if (isNew && !tplManual) { const auto = tplByDate(st.date); if (auto) applyTpl(auto); }
   let hasReh = !!st.rehearsal;
   if (!st.rehearsal) st.rehearsal = { date: addDays(st.date, -1), time: '18:00' };
   if (preset.eventId && !existing) st.rehearsal = { date: st.date, time: '16:30' };
@@ -302,11 +321,23 @@ export function openServiceEditor(nav, existing, preset = {}) {
         field('Дата', h('input#se-date', {
           type: 'date', value: st.date, onchange: e => {
             const old = st.date; st.date = e.target.value;
-            if (hasReh && st.rehearsal.date === addDays(old, -1)) { st.rehearsal.date = addDays(st.date, -1); ctx.paint(); }
+            let repaint = false;
+            if (hasReh && st.rehearsal.date === addDays(old, -1)) { st.rehearsal.date = addDays(st.date, -1); repaint = true; }
+            const auto = !tplManual && tplByDate(st.date);
+            if (auto && auto !== tpl) { applyTpl(auto); repaint = true; }
+            if (repaint) ctx.paint();
           },
         })),
-        field('Начало', h('input#se-time', { type: 'time', value: st.time, oninput: e => (st.time = e.target.value) }))),
-      field('Название', h('input#se-title', { value: st.title, oninput: e => (st.title = e.target.value) })),
+        field('Начало', h('input#se-time', { type: 'time', value: st.time, oninput: e => { st.time = e.target.value; timeTouched = true; } }))),
+      h('div.fld', h('span', 'Шаблон'),
+        seg([...TEMPLATES.map(t => [t.k, t.label]), ['custom', 'Свой вариант']], tpl, k => {
+          tplManual = true;
+          if (k === 'custom' && tpl !== 'custom') customTitle = '';
+          applyTpl(k); ctx.paint();
+          if (k === 'custom') setTimeout(() => { const i = document.getElementById('se-title'); if (i) i.focus(); }, 60);
+        }, '.full'),
+        !tplManual && isNew && tplByDate(st.date) ? h('small.hint', 'Выбрано по дню недели') : null),
+      tpl === 'custom' ? field('Название', h('input#se-title', { value: customTitle, placeholder: 'Например: Молитвенное служение', oninput: e => { customTitle = e.target.value; st.title = customTitle; } })) : null,
       S.events.length ? field('Событие', h('select#se-event', { value: st.eventId || '', onchange: e => (st.eventId = e.target.value) },
         h('option', { value: '' }, 'Обычное служение'),
         S.events.map(ev => h('option', { value: ev.id }, ev.title)))) : null,
