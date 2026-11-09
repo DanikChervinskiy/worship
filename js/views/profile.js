@@ -8,7 +8,7 @@ import { fmt, today } from '../dates.js';
 
 export function render(el, p, nav) {
   const M = me();
-  el.append(bar('Профиль', nav));
+  el.append(bar('Профиль', nav, [h('span.chip.line.mono', { title: 'Версия приложения' }, APP_VERSION)]));
 
   el.append(h('section.card',
     h('div.row.nowrap',
