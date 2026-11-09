@@ -134,5 +134,17 @@ initPullToRefresh();
 
 // Офлайн-режим и push: сервис-воркер (работает на настоящем хостинге, например GitHub Pages).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw', e)));
+  // Когда на телефон пришла новая версия приложения — один раз перезагружаемся, чтобы она сразу открылась.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading || document.body.classList.contains('perform') || document.querySelector('#layer .sheet-wrap')) return;
+    reloading = true;
+    location.reload();
+  });
+  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(reg => reg.update()).catch(e => console.warn('sw', e)));
+  // Вернулись в приложение (например, из фона на телефоне) — проверяем, нет ли обновления.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {});
+  });
 }

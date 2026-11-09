@@ -1,13 +1,13 @@
 // Сервис-воркер: приложение открывается без интернета, а push-уведомления приходят, даже когда оно закрыто.
 // После изменения файлов приложения увеличьте VERSION — телефоны подтянут новую версию.
-const VERSION = 'v18';
+const VERSION = 'v19';
 const SHELL = `shell-${VERSION}`;
 const RUNTIME = 'runtime-v1';
 
 const FILES = [
   './', './index.html', './manifest.webmanifest', './firebase-config.js',
   './css/app.css',
-  './js/main.js', './js/store.js', './js/model.js', './js/ui.js', './js/dates.js', './js/chords.js', './js/demo.js', './js/projector.js', './js/pull.js', './js/capo.js', './js/categories.js',
+  './js/main.js', './js/store.js', './js/model.js', './js/ui.js', './js/dates.js', './js/chords.js', './js/demo.js', './js/projector.js', './js/pull.js', './js/version.js', './js/capo.js', './js/categories.js',
   './js/views/home.js', './js/views/schedule.js', './js/views/songs.js', './js/views/perform.js', './js/views/more.js',
   './js/views/team.js', './js/views/suggestions.js', './js/views/study.js', './js/views/tasks.js', './js/views/warmups.js',
   './js/views/feedback.js', './js/views/profile.js', './js/views/auth.js', './js/views/settings.js',
@@ -31,7 +31,8 @@ try {
 
 /* ——— офлайн ——— */
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' — берём свежие файлы с сервера, а не из кэша браузера (GitHub Pages держит его до 10 минут).
+  event.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -72,7 +73,7 @@ self.addEventListener('fetch', event => {
 
   // Страница: сначала сеть (свежая версия), без сети — из кэша.
   if (req.mode === 'navigate') {
-    event.respondWith(fetch(req).then(res => {
+    event.respondWith(fetch(req, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put('./index.html', copy)); }
       return res;
     }).catch(() => caches.match('./index.html')));
@@ -82,7 +83,7 @@ self.addEventListener('fetch', event => {
   // Файлы приложения: сразу из кэша, параллельно обновляем.
   event.respondWith(caches.open(SHELL).then(async c => {
     const hit = await c.match(req, { ignoreSearch: true });
-    const net = fetch(req).then(res => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
+    const net = fetch(req, { cache: 'no-cache' }).then(res => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
     if (hit) { event.waitUntil(net); return hit; }
     return net;
   }));

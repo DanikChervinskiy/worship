@@ -3,6 +3,7 @@ import { S, putMine, loadDemo, removeDemo, resetLocal, isCloud, signOutUser, pus
 import { h, icon, run, bar, avatar, confirmSheet, toast } from '../ui.js';
 import { me, membersSorted, roleLabel, upcoming, svcSongs, PERM, can, notify } from '../model.js';
 import { openReset } from './auth.js';
+import { APP_VERSION } from '../version.js';
 import { fmt, today } from '../dates.js';
 
 export function render(el, p, nav) {
@@ -90,6 +91,7 @@ export function render(el, p, nav) {
       h('div', h('b', 'iPhone: '), 'откройте приложение в Safari → «Поделиться» → «На экран „Домой“».'),
       h('div', h('b', 'Android: '), 'в Chrome меню ⋮ → «Добавить на главный экран» или «Установить приложение».'))));
 
+  el.append(h('p.hint', { style: { textAlign: 'center' } }, `Версия приложения ${APP_VERSION}`));
   if (isCloud()) el.append(h('button.btn.ghost', { type: 'button', onclick: () => confirmSheet('Выйти из аккаунта?', 'Сохранённые на телефоне данные будут удалены. Войти можно снова в любой момент.', 'Выйти', () => signOutUser()) }, 'Выйти из аккаунта'));
 }
 
