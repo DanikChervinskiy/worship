@@ -44,7 +44,7 @@ export const CAT_COLORS = ['#E5484D', '#F76B15', '#E2A336', '#46A758', '#12A594'
 // Когда песню играли: последний раз, сколько всего и когда в следующий раз по расписанию.
 export function songHistory(songId) {
   const t = today();
-  const all = servicesSorted().filter(s => (s.songs || []).some(x => x.songId === songId));
+  const all = servicesSorted().filter(s => s.kind !== 'rehearsal' && (s.songs || []).some(x => x.songId === songId));
   const past = all.filter(s => s.date <= t);
   return { last: past.length ? past[past.length - 1] : null, count: past.length, next: all.find(s => s.date > t) || null };
 }

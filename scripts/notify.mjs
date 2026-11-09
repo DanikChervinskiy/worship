@@ -109,7 +109,8 @@ for (const d of svcSnap.docs) {
 
   // О служении: за 20 часов (накануне вечером), но не позже чем за час до начала.
   if (!rem.service && now >= start - 20 * HOUR && now < start - HOUR) {
-    await send(uids, `${isToday ? 'Сегодня' : 'Завтра'} служение${s.time ? ' в ' + s.time : ''}`, [s.title, songsLine].filter(Boolean).join('. '));
+    const what = s.kind === 'rehearsal' ? 'репетиция' : 'служение';
+    await send(uids, `${isToday ? 'Сегодня' : 'Завтра'} ${what}${s.time ? ' в ' + s.time : ''}`, [s.title, songsLine].filter(Boolean).join('. '));
     upd.service = true; remCount++;
   }
   // О репетиции: за 3 часа.

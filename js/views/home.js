@@ -161,7 +161,7 @@ function hero(svc, M, nav) {
   return h('section.hero',
     h('div.hero-top',
       h('div',
-        h('p.hero-k', (roles.length && svc.published ? 'Вы служите · ' : '') + relDay(svc.date)),
+        h('p.hero-k', (svc.kind === 'rehearsal' ? 'Репетиция · ' : roles.length && svc.published ? 'Вы служите · ' : '') + relDay(svc.date)),
         h('p.hero-t', fmt.full(svc.date)),
         h('p.hero-s', [svc.time, svcTitle(svc)].filter(Boolean).join(' · '))),
       ring(days)),

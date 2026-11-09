@@ -23,7 +23,7 @@ export function render(el, p, nav) {
     h('div.stack', { style: { gap: '6px' } }, h('p.eyebrow', 'Расписание'), h('h1.display', 'Служения')),
     can('schedule') ? h('div.top-actions',
       h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить событие', onclick: () => openEventEditor(nav) }, icon('star')),
-      h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить служение', onclick: () => openServiceEditor(nav, null, { date: firstSunday }) }, icon('plus'))) : null));
+      h('button.iconbtn', { type: 'button', 'aria-label': 'Добавить', onclick: () => openAddChooser(nav, firstSunday) }, icon('plus'))) : null));
 
   el.append(h('section.cal',
     h('div.cal-h',
@@ -93,10 +93,21 @@ export function svcCard(s, M, nav) {
           ? h('div.avs', people.slice(0, 5).map(p => avatar(personName(p))), people.length > 5 ? h('span.av', `+${people.length - 5}`) : null)
           : h('span.small.muted', s.published ? 'Состав не назначен' : 'Состав уточняется'),
         h('div.chips',
+          isRehearsal(s) ? h('span.chip.line', icon('mic', 12, 2.2), 'Репетиция') : null,
           s.done ? h('span.chip', icon('check', 12, 2.6), 'Прошло') : null,
           !s.published && !s.done && can('schedule') ? h('span.chip.line', 'Черновик') : null,
           myRoles.length ? h('span.chip.ink', myRoles.map(roleLabel).join(', ')) : null,
           st === 'yes' ? h('span.chip.ok', 'Смогу') : st === 'no' ? h('span.chip.no', 'Не смогу') : null))));
+}
+
+export function openAddChooser(nav, date) {
+  sheet('Добавить', (b, ctx) => {
+    const act = (ic, title, sub, fn) => h('button', { type: 'button', onclick: () => { ctx.close(); fn(); } }, icon(ic, 24), h('div', h('b', title), h('br'), h('small', sub)));
+    b.append(h('div.qa',
+      act('calendar', 'Служение', 'Песни и состав', () => openServiceEditor(nav, null, { date })),
+      act('mic', 'Репетиция', 'Отдельно, без служения', () => openServiceEditor(nav, null, { kind: 'rehearsal', date: nextWeekday(6) })),
+      act('star', 'Событие', 'Конференция, фестиваль', () => openEventEditor(nav))));
+  });
 }
 
 /* ——— Служение подробно ——— */
@@ -113,7 +124,7 @@ export function renderService(el, { id }, nav) {
 
   el.append(h('section.hero',
     h('div',
-      h('p.hero-k', (s.done ? 'Служение прошло · ' : '') + relDay(s.date) + (ev ? ` · ${ev.title}` : '')),
+      h('p.hero-k', (isRehearsal(s) ? 'Репетиция · ' : '') + (s.done ? 'Прошло · ' : '') + relDay(s.date) + (ev ? ` · ${ev.title}` : '')),
       h('p.hero-t', fmt.full(s.date)),
       h('p.hero-s', [s.time, svcTitle(s)].filter(Boolean).join(' · '))),
     (s.rehearsal || myRoles.length) ? h('div.chips',
@@ -150,32 +161,29 @@ export function renderService(el, { id }, nav) {
     const rows = ROLES.filter(r => (s.team && s.team[r.k] || []).length).map(r => h('div.team-row',
       h('div.team-k', r.label),
       h('div.team-v', s.team[r.k].map(p => {
-        const a = can('schedule') && p.memberId ? availOf(p.memberId, s.id) : null;
+        // Зелёный — ответил «смогу», красный — «не смогу», серый — ещё не ответил.
+        const a = p.memberId ? availOf(p.memberId, s.id) : null;
         const isMe = p.memberId && p.memberId === M.memberId;
-        return h('span.chip' + (isMe ? '.ink' : a === 'no' ? '.no' : a === 'yes' ? '.ok' : ''), personName(p), a === 'no' ? ' · не сможет' : '');
+        return h('span.chip' + (a === 'no' ? '.no' : a === 'yes' ? '.ok' : '') + (isMe ? '.me' : ''),
+          a === 'yes' ? icon('check', 12, 2.6) : a === 'no' ? icon('x', 12, 2.6) : null,
+          personName(p), isMe ? ' (вы)' : '');
       }))));
-    el.append(h('section.card', rows.length ? rows : h('p.muted', 'Состав пока не назначен.')));
+    el.append(h('section.card', rows.length ? rows : h('p.muted', 'Состав пока не назначен.'),
+      rows.length ? h('div.row.small.muted', { style: { gap: '12px', marginTop: '4px' } },
+        h('span', h('span.legend.ok'), ' смогут'), h('span', h('span.legend.no'), ' не смогут'), h('span', h('span.legend'), ' не ответили')) : null));
   }
 
   // Отметить, что служение прошло: оно уходит с главной и из списков «сможете?».
   if (can('schedule') && (s.done || s.date <= today())) {
     el.append(h('section.card',
-      h('div.card-h', h('h2.h2', s.done ? 'Служение прошло' : 'Служение уже прошло?'), s.done ? icon('check', 22, 2.2) : null),
+      h('div.card-h', h('h2.h2', isRehearsal(s) ? (s.done ? 'Репетиция прошла' : 'Репетиция уже прошла?') : (s.done ? 'Служение прошло' : 'Служение уже прошло?')), s.done ? icon('check', 22, 2.2) : null),
       h('p.small.muted', s.done ? 'Оно больше не висит на главной и в напоминаниях.' : 'Отметьте — и оно перестанет висеть на главной у всей команды.'),
       h('button.btn' + (s.done ? '.ghost' : ''), {
-        type: 'button', onclick: () => run(() => put('services', { ...s, done: !s.done }, s.id), s.done ? 'Служение снова в предстоящих' : 'Отмечено: служение прошло'),
-      }, s.done ? 'Вернуть в предстоящие' : h('span', icon('check', 18, 2.2), ' Служение прошло'))));
+        type: 'button', onclick: () => run(() => put('services', { ...s, done: !s.done }, s.id), s.done ? 'Снова в предстоящих' : 'Отмечено: прошло'),
+      }, s.done ? 'Вернуть в предстоящие' : h('span', icon('check', 18, 2.2), isRehearsal(s) ? ' Репетиция прошла' : ' Служение прошло'))));
   }
 
-  // Лидеру: кто отметился
   if (can('schedule') && !s.done) {
-    const yes = [], no = [];
-    S.members.forEach(m => { const a = availOf(m.id, s.id); if (a === 'yes') yes.push(m.name); if (a === 'no') no.push(m.name); });
-    el.append(h('section.card',
-      h('h2.h2', 'Отметки команды'),
-      h('div.team-row', h('div.team-k', 'Смогут'), h('div.team-v', yes.length ? yes.map(n => h('span.chip.ok', n)) : h('span.small.muted', 'пока никто'))),
-      h('div.team-row', h('div.team-k', 'Не смогут'), h('div.team-v', no.length ? no.map(n => h('span.chip.no', n)) : h('span.small.muted', 'пока никто')))));
-
     el.append(h('section.card',
       h('h2.h2', 'Уведомления'),
       !s.published
@@ -279,19 +287,21 @@ const TEMPLATES = [
   { k: 'sunday', label: 'Воскресное', title: 'Воскресное служение', time: '10:00', dow: 0 },
   { k: 'evening', label: 'Вечернее', title: 'Вечернее служение', time: '15:00', dow: 4 },
 ];
+export const isRehearsal = s => s && s.kind === 'rehearsal';
 const tplByTitle = t => (TEMPLATES.find(x => x.title === t) || {}).k || 'custom';
 const tplByDate = d => (TEMPLATES.find(x => x.dow === parse(d).getDay()) || {}).k || null;
 
 export function openServiceEditor(nav, existing, preset = {}) {
   const isNew = !existing;
   const date0 = preset.date || nextWeekday(0);
+  const reh = existing ? isRehearsal(existing) : preset.kind === 'rehearsal';
   const st = existing ? JSON.parse(JSON.stringify(existing)) : {
-    date: date0, time: preset.time || '10:00', title: preset.title || 'Воскресное служение',
-    eventId: preset.eventId || '', rehearsal: { date: addDays(date0, -1), time: '18:00' },
-    songs: [], team: {}, note: '', published: false,
+    date: date0, time: preset.time || (reh ? '18:00' : '10:00'), title: preset.title || (reh ? 'Репетиция' : 'Воскресное служение'),
+    eventId: preset.eventId || '', rehearsal: reh ? null : { date: addDays(date0, -1), time: '18:00' },
+    songs: [], team: {}, note: '', published: false, kind: reh ? 'rehearsal' : 'service',
   };
   let tpl = tplByTitle(st.title);
-  let tplManual = !isNew || !!preset.title;   // шаблон выбран вручную — дата его больше не меняет
+  let tplManual = !isNew || !!preset.title || reh;   // шаблон выбран вручную — дата его больше не меняет
   let customTitle = tpl === 'custom' ? st.title : '';
   const applyTpl = k => {
     tpl = k;
@@ -301,11 +311,11 @@ export function openServiceEditor(nav, existing, preset = {}) {
   };
   let timeTouched = !!preset.time;
   if (isNew && !tplManual) { const auto = tplByDate(st.date); if (auto) applyTpl(auto); }
-  let hasReh = !!st.rehearsal;
+  let hasReh = !reh && !!st.rehearsal;
   if (!st.rehearsal) st.rehearsal = { date: addDays(st.date, -1), time: '18:00' };
   if (preset.eventId && !existing) st.rehearsal = { date: st.date, time: '16:30' };
   st.team = st.team || {};
-  if (!st.songs.length) st.songs = [{ songId: '', key: '' }, { songId: '', key: '' }, { songId: '', key: '' }];
+  if (!st.songs.length && !reh) st.songs = [{ songId: '', key: '' }, { songId: '', key: '' }, { songId: '', key: '' }];
   const other = {};
   const before = existing ? teamMemberIds(existing) : new Set();
   const mark = mid => {
@@ -314,7 +324,7 @@ export function openServiceEditor(nav, existing, preset = {}) {
     return a === 'yes' ? '✓ ' : a === 'no' ? '✗ ' : '';
   };
 
-  sheet(isNew ? 'Новое служение' : 'Изменить служение', (b, ctx) => {
+  sheet(reh ? (isNew ? 'Новая репетиция' : 'Изменить репетицию') : (isNew ? 'Новое служение' : 'Изменить служение'), (b, ctx) => {
     const songsList = songsSorted();
     b.append(
       h('div.grid2',
@@ -329,7 +339,8 @@ export function openServiceEditor(nav, existing, preset = {}) {
           },
         })),
         field('Начало', h('input#se-time', { type: 'time', value: st.time, oninput: e => { st.time = e.target.value; timeTouched = true; } }))),
-      h('div.fld', h('span', 'Шаблон'),
+      reh ? field('Название', h('input#se-title', { value: st.title, placeholder: 'Репетиция', oninput: e => (st.title = e.target.value) })) : null,
+      reh ? null : h('div.fld', h('span', 'Шаблон'),
         seg([...TEMPLATES.map(t => [t.k, t.label]), ['custom', 'Свой вариант']], tpl, k => {
           tplManual = true;
           if (k === 'custom' && tpl !== 'custom') customTitle = '';
@@ -337,19 +348,19 @@ export function openServiceEditor(nav, existing, preset = {}) {
           if (k === 'custom') setTimeout(() => { const i = document.getElementById('se-title'); if (i) i.focus(); }, 60);
         }, '.full'),
         !tplManual && isNew && tplByDate(st.date) ? h('small.hint', 'Выбрано по дню недели') : null),
-      tpl === 'custom' ? field('Название', h('input#se-title', { value: customTitle, placeholder: 'Например: Молитвенное служение', oninput: e => { customTitle = e.target.value; st.title = customTitle; } })) : null,
-      S.events.length ? field('Событие', h('select#se-event', { value: st.eventId || '', onchange: e => (st.eventId = e.target.value) },
+      !reh && tpl === 'custom' ? field('Название', h('input#se-title', { value: customTitle, placeholder: 'Например: Молитвенное служение', oninput: e => { customTitle = e.target.value; st.title = customTitle; } })) : null,
+      S.events.length && !reh ? field('Событие', h('select#se-event', { value: st.eventId || '', onchange: e => (st.eventId = e.target.value) },
         h('option', { value: '' }, 'Обычное служение'),
         S.events.map(ev => h('option', { value: ev.id }, ev.title)))) : null,
-      h('label.check', h('input#se-reh', { type: 'checkbox', checked: hasReh, onchange: e => { hasReh = e.target.checked; ctx.paint(); } }), h('span', h('b', 'Репетиция'))),
+      reh ? null : h('label.check', h('input#se-reh', { type: 'checkbox', checked: hasReh, onchange: e => { hasReh = e.target.checked; ctx.paint(); } }), h('span', h('b', 'Репетиция'))),
       hasReh ? h('div.grid2',
         field('Дата репетиции', h('input#se-rdate', { type: 'date', value: st.rehearsal.date, onchange: e => (st.rehearsal.date = e.target.value) })),
         field('Время', h('input#se-rtime', { type: 'time', value: st.rehearsal.time, oninput: e => (st.rehearsal.time = e.target.value) }))) : null,
       h('div.divider'),
       h('div.row.between',
-        h('div', h('b', 'Песни'), h('div.small.muted', 'Сколько песен на служении')),
+        h('div', h('b', 'Песни'), h('div.small.muted', reh ? 'Что репетируем (необязательно)' : 'Сколько песен на служении')),
         h('div.transp',
-          h('button', { type: 'button', 'aria-label': 'Меньше песен', onclick: () => { if (st.songs.length > 1) { st.songs.pop(); ctx.paint(); } } }, icon('minus', 18)),
+          h('button', { type: 'button', 'aria-label': 'Меньше песен', onclick: () => { if (st.songs.length > (reh ? 0 : 1)) { st.songs.pop(); ctx.paint(); } } }, icon('minus', 18)),
           h('b', st.songs.length),
           h('button', { type: 'button', 'aria-label': 'Больше песен', onclick: () => { if (st.songs.length < 12) { st.songs.push({ songId: '', key: '' }); ctx.paint(); } } }, icon('plus', 18)))),
       !songsList.length ? h('p.hint', 'В базе пока нет песен — сначала добавьте их в разделе «Песни».') : null,
@@ -412,7 +423,7 @@ export function openServiceEditor(nav, existing, preset = {}) {
     if (!st.date) return toast('Укажите дату');
     const doc = {
       date: st.date, time: st.time || '', title: (st.title || '').trim() || 'Служение',
-      kind: st.eventId ? 'event' : 'service', eventId: st.eventId || '',
+      kind: reh ? 'rehearsal' : st.eventId ? 'event' : 'service', eventId: reh ? '' : st.eventId || '',
       rehearsal: hasReh ? { date: st.rehearsal.date, time: st.rehearsal.time } : null,
       songs: st.songs.filter(x => x.songId).map(x => { const s2 = song(x.songId) || {}; return { songId: x.songId, key: x.key || s2.playKey || s2.key || '' }; }),
       team: {}, note: st.note || '', published: !!st.published,
@@ -428,7 +439,7 @@ export function openServiceEditor(nav, existing, preset = {}) {
         for (const mid of after) if (!before.has(mid)) await notify('Вы добавлены в служение', `${label} · ${rolesIn(doc, mid).map(roleLabel).join(', ')}`, [mid], id);
         for (const mid of before) if (!after.has(mid)) await notify('Вас сняли со служения', label, [mid], id);
       }
-    }, isNew ? 'Служение создано' : 'Сохранено');
+    }, isNew ? (reh ? 'Репетиция создана' : 'Служение создано') : 'Сохранено');
     if (ok) { ctx.close(); if (isNew) nav.push('service', { id }); }
   }
 }

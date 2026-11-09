@@ -104,8 +104,9 @@ function quickActions() {
   sheet('Добавить', (b, ctx) => {
     const act = (ic, title, sub, fn) => h('button', { type: 'button', onclick: () => { ctx.close(); fn(); } }, icon(ic, 24), h('div', h('b', title), h('br'), h('small', sub)));
     const admin = [
-      can('schedule') && act('calendar', 'Служение', 'Песни, состав, репетиция', () => Schedule.openServiceEditor(nav)),
+      can('schedule') && act('calendar', 'Служение', 'Песни и состав', () => Schedule.openServiceEditor(nav)),
       can('songs') && act('music', 'Песня', 'Слова, аккорды, партии', () => Songs.openSongEditor(nav)),
+      can('schedule') && act('mic', 'Репетиция', 'Отдельно, без служения', () => Schedule.openServiceEditor(nav, null, { kind: 'rehearsal' })),
       can('schedule') && act('star', 'Событие', 'Конференция, фестиваль', () => Schedule.openEventEditor(nav)),
       can('notify') && act('bell', 'Уведомление', 'Сообщение всей команде', () => Home.openNotify()),
       can('tasks') && act('list', 'Задача', 'С подзадачами по ролям', () => Tasks.openTaskEditor()),
