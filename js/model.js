@@ -6,6 +6,7 @@ export const ROLES = [
   { k: 'vocal', label: 'Вокал' },
   { k: 'keys', label: 'Клавиши' },
   { k: 'guitar', label: 'Гитара' },
+  { k: 'eguitar', label: 'Электро' },
   { k: 'bass', label: 'Бас' },
   { k: 'drums', label: 'Барабаны' },
   { k: 'sound', label: 'Звук' },
@@ -13,7 +14,7 @@ export const ROLES = [
 ];
 export const ROLE = Object.fromEntries(ROLES.map(r => [r.k, r]));
 export const roleLabel = k => (ROLE[k] ? ROLE[k].label : k === 'all' ? 'Все' : k);
-export const MUSICIANS = new Set(['keys', 'guitar', 'bass', 'drums']);
+export const MUSICIANS = new Set(['keys', 'guitar', 'eguitar', 'bass', 'drums']);
 export const OPERATORS = new Set(['sound', 'media']);
 
 // Права, которые лидер может выдать участникам (вкладка «Настройки»).

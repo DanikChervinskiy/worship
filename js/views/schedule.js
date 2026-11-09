@@ -277,7 +277,7 @@ export function openEventEditor(nav, existing) {
 // Шаблоны названий. По дню недели шаблон выбирается сам: воскресенье — воскресное, четверг — вечернее.
 const TEMPLATES = [
   { k: 'sunday', label: 'Воскресное', title: 'Воскресное служение', time: '10:00', dow: 0 },
-  { k: 'evening', label: 'Вечернее', title: 'Вечернее служение', time: '18:30', dow: 4 },
+  { k: 'evening', label: 'Вечернее', title: 'Вечернее служение', time: '15:00', dow: 4 },
 ];
 const tplByTitle = t => (TEMPLATES.find(x => x.title === t) || {}).k || 'custom';
 const tplByDate = d => (TEMPLATES.find(x => x.dow === parse(d).getDay()) || {}).k || null;
