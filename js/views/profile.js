@@ -96,7 +96,6 @@ export function render(el, p, nav) {
 function pushCard(nav) {
   const sup = pushSupport();
   const on = sup.ok && sup.permission === 'granted' && S.pushOk !== false && ls.get('wt.push');
-  const M = me();
   let body;
   if (!sup.ok && sup.reason === 'ios-home') body = h('p.small.muted', 'На iPhone уведомления работают, только когда приложение открыто с иконки на главном экране. Добавьте иконку (ниже), откройте приложение с неё и включите уведомления здесь.');
   else if (!sup.ok && sup.reason === 'nokey') body = h('p.small.muted', 'Push ещё не настроены: лидеру нужно добавить ключ из инструкции (шаг «Push-уведомления»).');
@@ -113,8 +112,17 @@ function pushCard(nav) {
         catch (e) { console.warn(e); toast(e && e.message === 'denied' ? 'Вы не разрешили уведомления' : 'Не получилось включить уведомления'); nav.refresh(); }
       },
     }, icon('bell', 18), on ? 'Обновить подписку' : 'Включить уведомления'),
-    on && can('notify') && M.memberId ? h('button.btn.ghost', {
-      type: 'button', onclick: () => run(() => notify('Проверка уведомлений', 'Если вы видите это в шторке телефона — push работают.', [M.memberId]), 'Отправлено. Push придёт в течение ~5 минут'),
-    }, icon('send', 18), 'Прислать проверку себе') : null);
-  return h('section.card', h('div.card-h', h('h2.h2', 'Уведомления'), icon('bell', 22)), body);
+    can('notify') ? testButton(on) : null);
+  return h('section.card', h('div.card-h', h('h2.h2', 'Уведомления'), icon('bell', 22)), body,
+    can('notify') && !(sup.ok && sup.permission !== 'denied') ? testButton(false) : null);
+}
+
+// Проверка: push только на ваш аккаунт.
+function testButton(on) {
+  return h('div.stack', { style: { gap: '6px' } },
+    h('button.btn.ghost', {
+      type: 'button', disabled: !on,
+      onclick: () => run(() => notify('Проверка уведомлений', 'Если вы видите это в шторке телефона — push работают.', ['u:' + S.uid]), 'Отправлено. Push придёт в течение ~5 минут'),
+    }, icon('send', 18), 'Прислать проверку себе'),
+    !on ? h('p.hint', 'Кнопка заработает, когда на этом телефоне включены уведомления.') : null);
 }

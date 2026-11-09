@@ -29,7 +29,11 @@ const allUids = [...new Set([...Object.keys(memberOf), ...leaders])];
 
 const uidsFor = to => {
   if (to === 'all') return allUids;
-  if (Array.isArray(to)) return Object.keys(memberOf).filter(u => to.includes(memberOf[u]));
+  // Адресаты — служители (memberId) или конкретные аккаунты ('u:' + uid, например проверка себе).
+  if (Array.isArray(to)) {
+    const direct = to.filter(x => typeof x === 'string' && x.startsWith('u:')).map(x => x.slice(2));
+    return [...new Set([...Object.keys(memberOf).filter(u => to.includes(memberOf[u])), ...direct])];
+  }
   return [];
 };
 

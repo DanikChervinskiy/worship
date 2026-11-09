@@ -104,7 +104,7 @@ export const svcLabel = svc => `${fmt.short(svc.date)}${svc.time ? ' · ' + svc.
 
 export function feedFor(memberId) {
   return S.feed
-    .filter(f => f.to === 'all' || (Array.isArray(f.to) && memberId && f.to.includes(memberId)))
+    .filter(f => f.to === 'all' || (Array.isArray(f.to) && ((memberId && f.to.includes(memberId)) || f.to.includes('u:' + S.uid))))
     .sort((a, b) => (b.at || 0) - (a.at || 0));
 }
 
