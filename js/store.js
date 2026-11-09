@@ -22,6 +22,7 @@ export const S = {
   isLeader: false,
   perms: [],         // отдельные права, выданные лидером: songs, schedule, team, notify, study, tasks
   permsAll: {},      // (для лидера) права всех участников: uid → [..]
+  pushOk: null,      // этот телефон подписан на push (null — ещё не проверено)
   leaders: [],
   requests: [],
   syncedAt: null,
@@ -144,7 +145,7 @@ function recompute() {
   if (!got.roles || !got.access) return;
   S.isLeader = S.leaders.includes(S.uid);
   if (!rolesExist) S.auth = 'setup';
-  else if (S.isLeader || myAccess) { S.auth = 'ready'; startData(); watchRequests(); }
+  else if (S.isLeader || myAccess) { S.auth = 'ready'; startData(); watchRequests(); setTimeout(refreshPush, 1500); }
   else { S.auth = 'pending'; ensureRequest(); }
   emit();
 }
@@ -397,17 +398,40 @@ export async function enablePush() {
   if (!fb || !S.uid) throw new Error('offline');
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') throw new Error('denied');
+  await registerToken();
+}
+
+// Получить адрес этого телефона для push и записать его в базу.
+// Адрес у телефона иногда меняется (обновление iOS, переустановка иконки) — тогда старый перестаёт работать,
+// поэтому при каждом открытии приложения адрес проверяется и при необходимости обновляется.
+async function registerToken() {
   const m = await import(SDK + 'firebase-messaging.js');
   if (!(await m.isSupported())) throw new Error('unsupported');
   const reg = await navigator.serviceWorker.ready;
   const token = await m.getToken(m.getMessaging(fb.app), { vapidKey: self.FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg });
+  if (!token) throw new Error('unsupported');
   const { F, fs } = fb;
   const ref = F.doc(fs, 'tokens', S.uid);
   const cur = await F.getDoc(ref);
-  const list = new Set((cur.exists() && cur.data().list) || []);
-  list.add(token);
-  await F.setDoc(ref, { list: [...list].slice(-5), at: F.serverTimestamp() });
+  const old = (cur.exists() && cur.data().list) || [];
+  if (!old.includes(token)) {
+    const list = [...old.filter(t => t !== token), token].slice(-5);
+    await F.setDoc(ref, { list, at: F.serverTimestamp() });
+  }
   ls.set('wt.push', token);
+  S.pushOk = true;
+  emit();
+  return token;
+}
+
+let pushChecked = false;
+export async function refreshPush() {
+  if (pushChecked || !fb || !S.uid || S.mode === 'local') return;
+  pushChecked = true;
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !self.FIREBASE_VAPID_KEY) { S.pushOk = false; return; }
+    await registerToken();
+  } catch (e) { console.warn('push refresh', e); S.pushOk = false; emit(); }
 }
 
 /* ——— резервная копия ——— */

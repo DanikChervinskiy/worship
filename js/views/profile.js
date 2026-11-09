@@ -1,7 +1,7 @@
 // Профиль: кто я в команде, уведомления, офлайн, резервная копия, выход.
 import { S, putMine, loadDemo, removeDemo, resetLocal, isCloud, signOutUser, pushSupport, enablePush, exportData, importData, ls } from '../store.js';
 import { h, icon, run, bar, avatar, confirmSheet, toast } from '../ui.js';
-import { me, membersSorted, roleLabel, upcoming, svcSongs, PERM } from '../model.js';
+import { me, membersSorted, roleLabel, upcoming, svcSongs, PERM, can, notify } from '../model.js';
 import { openReset } from './auth.js';
 import { fmt, today } from '../dates.js';
 
@@ -95,19 +95,26 @@ export function render(el, p, nav) {
 
 function pushCard(nav) {
   const sup = pushSupport();
-  const on = sup.ok && sup.permission === 'granted' && ls.get('wt.push');
+  const on = sup.ok && sup.permission === 'granted' && S.pushOk !== false && ls.get('wt.push');
+  const M = me();
   let body;
-  if (!sup.ok && sup.reason === 'ios-home') body = h('p.small.muted', 'На iPhone уведомления работают, когда приложение добавлено на главный экран. Добавьте иконку (ниже), откройте приложение с неё и включите уведомления здесь.');
+  if (!sup.ok && sup.reason === 'ios-home') body = h('p.small.muted', 'На iPhone уведомления работают, только когда приложение открыто с иконки на главном экране. Добавьте иконку (ниже), откройте приложение с неё и включите уведомления здесь.');
   else if (!sup.ok && sup.reason === 'nokey') body = h('p.small.muted', 'Push ещё не настроены: лидеру нужно добавить ключ из инструкции (шаг «Push-уведомления»).');
   else if (!sup.ok) body = h('p.small.muted', 'Этот браузер не поддерживает push-уведомления. Уведомления будут в ленте на главном экране.');
-  else if (sup.permission === 'denied') body = h('p.small.muted', 'Уведомления запрещены в настройках браузера. Разрешите их для этого сайта и вернитесь сюда.');
+  else if (sup.permission === 'denied') body = h('p.small.muted', 'Уведомления для приложения запрещены. iPhone: Настройки → Уведомления → «Служение» → Допуск уведомлений. Android: долгое нажатие на иконку → О приложении → Уведомления.');
   else body = h('div.stack',
-    h('p.small.muted', on ? 'Уведомления включены на этом устройстве: напоминания о служениях и репетициях, изменения в составе, объявления.' : 'Включите, чтобы получать напоминания о служениях и репетициях, изменения в составе и объявления.'),
+    on ? h('div.row', h('span.chip.ok', icon('check', 14, 2.4), 'Этот телефон подписан')) : null,
+    h('p.small.muted', on
+      ? 'Сюда придут объявления, «вы добавлены / сняты со служения» и напоминания о служении и репетиции. Приходят в течение ~5 минут.'
+      : 'Включите, чтобы получать напоминания о служениях и репетициях, изменения в составе и объявления.'),
     h('button.btn' + (on ? '.soft' : ''), {
       type: 'button', onclick: async () => {
         try { await enablePush(); toast('Уведомления включены'); nav.refresh(); }
         catch (e) { console.warn(e); toast(e && e.message === 'denied' ? 'Вы не разрешили уведомления' : 'Не получилось включить уведомления'); nav.refresh(); }
       },
-    }, icon('bell', 18), on ? 'Обновить подписку' : 'Включить уведомления'));
+    }, icon('bell', 18), on ? 'Обновить подписку' : 'Включить уведомления'),
+    on && can('notify') && M.memberId ? h('button.btn.ghost', {
+      type: 'button', onclick: () => run(() => notify('Проверка уведомлений', 'Если вы видите это в шторке телефона — push работают.', [M.memberId]), 'Отправлено. Push придёт в течение ~5 минут'),
+    }, icon('send', 18), 'Прислать проверку себе') : null);
   return h('section.card', h('div.card-h', h('h2.h2', 'Уведомления'), icon('bell', 22)), body);
 }
