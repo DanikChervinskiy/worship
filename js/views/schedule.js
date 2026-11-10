@@ -6,6 +6,7 @@ import {
   member, membersSorted, songsSorted, song, songHistory, service, event, personName, teamMemberIds, teamPeople, notify, OPERATORS, can, isDone } from '../model.js';
 import { fmt, weeksOfMonth, today, addDays, parse, nextWeekday, monthKey, plural, relDay, pad } from '../dates.js';
 import { keyChoices } from '../chords.js';
+import { offerCard, offersFor, offersList } from '../offers.js';
 import { openProjector } from '../projector.js';
 
 let cur = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; })();
@@ -171,6 +172,15 @@ export function renderService(el, { id }, nav) {
     el.append(h('section.card', rows.length ? rows : h('p.muted', 'Состав пока не назначен.'),
       rows.length ? h('div.row.small.muted', { style: { gap: '12px', marginTop: '4px' } },
         h('span', h('span.legend.ok'), ' смогут'), h('span', h('span.legend.no'), ' не смогут'), h('span', h('span.legend'), ' не ответили')) : null));
+  }
+
+  // Предложить себя / предложения для лидера
+  el.append(offerCard(s));
+  if (can('schedule')) {
+    const offs = offersFor(s);
+    if (offs.length) el.append(h('section.card',
+      h('div.card-h', h('h2.h2', 'Предложили себя'), h('span.chip.ink', offs.length)),
+      offersList(offs, nav, false)));
   }
 
   // Отметить, что служение прошло: оно уходит с главной и из списков «сможете?».

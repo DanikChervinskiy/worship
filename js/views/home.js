@@ -7,6 +7,7 @@ import {
 import { fmt, relDay, daysBetween, today, addDays, plural } from '../dates.js';
 import { openServiceEditor } from './schedule.js';
 import { openProjector } from '../projector.js';
+import { allPendingOffers, offersList } from '../offers.js';
 
 const greeting = () => {
   const hr = new Date().getHours();
@@ -59,6 +60,14 @@ export function render(el, p, nav) {
           h('div.grow', h('div.ellip', h('b', m ? m.name : 'Участник'), ' · ', svc ? fmt.short(svc.date) : '')),
           h('span.chip.' + (r.st === 'yes' ? 'ok' : 'no'), r.st === 'yes' ? 'Сможет' : 'Не сможет'));
       }))));
+  }
+
+  // Предложения в состав (тем, кто ведёт расписание)
+  if (can('schedule')) {
+    const offs = allPendingOffers();
+    if (offs.length) el.append(h('section.card',
+      h('div.card-h', h('div', h('h2.h2', 'Предложили себя'), h('p.small.muted', 'Подтвердите или отклоните')), h('span.chip.ink', offs.length)),
+      offersList(offs.slice(0, 8), nav, true)));
   }
 
   // Моя доступность

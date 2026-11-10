@@ -563,3 +563,10 @@ button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
 .part-row { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 10px; }
 .part-k { font-size: 14px; font-weight: 600; }
 a.part-link { color: inherit; text-decoration: none; text-align: left; }
+
+/* Предложить себя */
+.offer-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.offer-row:last-child { border-bottom: 0; }
+.offer-item { gap: 10px; }
+.iconbtn.sm { width: 38px; height: 38px; flex: none; background: var(--surface-2); }
+.iconbtn.sm.ok { background: var(--ink); color: var(--bg); }

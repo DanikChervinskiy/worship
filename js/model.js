@@ -133,7 +133,7 @@ export async function setAvail(sid, status) {
   const s = { ...(cur.s || {}) };
   const t = { ...(cur.t || {}) };
   if (s[sid] === status) { delete s[sid]; delete t[sid]; } else { s[sid] = status; t[sid] = Date.now(); }
-  await putMine('avail', { memberId: myMemberId(), s, t });
+  await putMine('avail', { memberId: myMemberId(), s, t, o: cur.o || {} });
 }
 
 // Последние ответы команды о доступности (для лидера).

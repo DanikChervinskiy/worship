@@ -43,7 +43,12 @@ service cloud.firestore {
     match /events/{id}   { allow read: if isMember(); allow write: if can('schedule'); }
     match /members/{id}  { allow read: if isMember(); allow write: if can('team'); }
     // Лента: объявления пишут право «Сообщения» и «Расписание» (объявление состава, перестановки).
-    match /feed/{id}     { allow read: if isMember(); allow write: if can('notify') || can('schedule'); }
+    match /feed/{id}     {
+      allow read: if isMember();
+      allow write: if can('notify') || can('schedule');
+      // Участник может только сообщить лидеру, что предложил себя в состав.
+      allow create: if isMember() && request.resource.data.kind == 'offer' && request.resource.data.to is list && request.resource.data.to.size() <= 10;
+    }
     match /lessons/{id}  { allow read: if isMember(); allow write: if can('study'); }
     match /warmups/{id}  { allow read: if isMember(); allow write: if can('tasks'); }
 
