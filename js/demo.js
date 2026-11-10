@@ -75,10 +75,10 @@ export function buildDemo() {
   const songs = [
     { id: 'demo-tyzdes', title: 'Ты здесь', author: 'Пример песни', key: 'A', bpm: 70, meter: '4/4', youtube: '',
       arrangement: 'Вст · К1 · П · К2 · П · П', notes: 'Вокал: припев — второй голос терцией выше.\nКлавиши: вступление одни, барабаны со второго куплета.',
-      versions: [{ label: 'Русский', text: TY_ZDES }] },
+      versions: [{ lang: 'ru', label: 'Рус', text: TY_ZDES }] },
     { id: 'demo-amazing', title: 'Amazing Grace', author: 'John Newton, 1779', key: 'G', bpm: 80, meter: '3/4', youtube: '',
       arrangement: 'К1 · К2 · К3 · К1', notes: 'Первый куплет — только клавиши и вокал.',
-      versions: [{ label: 'English', text: AMAZING_EN }, { label: 'Русский (перевод)', text: AMAZING_RU }] },
+      versions: [{ lang: 'ru', label: 'Рус', text: AMAZING_RU }] },
     { id: 'demo-holy', title: 'Holy, Holy, Holy', author: 'Reginald Heber, 1826', key: 'D', bpm: 72, meter: '4/4', youtube: '',
       arrangement: 'К1 · К2 · К1', notes: '',
       versions: [{ label: 'English', text: HOLY_EN }] },

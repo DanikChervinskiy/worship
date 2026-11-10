@@ -6,6 +6,7 @@ import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory, can } 
 import { plural, fmt, daysBetween, today } from '../dates.js';
 import { renderSong as renderText, transposeKey, semitones, prefersFlats, ALL_KEYS, keyChoices, lyricsOnly, convertChordsAbove } from '../chords.js';
 import { capoControl, capoState } from '../capo.js';
+import { LANGS, songTexts, pickLang, langSwitch, buildVersions } from '../langs.js';
 import { catChip, songCats, openCategories, openCategoryEditor } from '../categories.js';
 
 let q = '';
@@ -85,11 +86,11 @@ export function render(el, p, nav) {
 export function renderSong(el, { id, key }, nav) {
   const s = song(id);
   if (!s) { el.append(bar('Песня', nav), h('div.list', empty('music', 'Песня не найдена', 'Возможно, её удалили из базы.'))); return; }
-  const versions = (s.versions && s.versions.length) ? s.versions : [{ label: 'Текст', text: '' }];
+  const texts = songTexts(s);
   const main = playKey(s);
   const vkey = id + '|' + (key || '');
-  const st = view[vkey] || (view[vkey] = { mode: defaultMode(me().roles), steps: semitones(s.key, key || main), v: 0 });
-  if (st.v >= versions.length) st.v = 0;
+  const st = view[vkey] || (view[vkey] = { mode: defaultMode(me().roles), steps: semitones(s.key, key || main), lang: null });
+  st.lang = pickLang(s, st.lang);
 
   el.append(bar(s.title, nav, can('songs') ? [h('button.iconbtn', { type: 'button', 'aria-label': 'Изменить песню', onclick: () => openSongEditor(nav, s) }, icon('edit', 20))] : []));
 
@@ -125,7 +126,7 @@ export function renderSong(el, { id, key }, nav) {
       onclick: () => run(() => put('songs', { ...s, playKey: target }, s.id), `Теперь основная тональность — ${target}`),
     }, `Сделать ${target} основной`) : null,
     target ? capoControl(s.id, target, refresh) : null,
-    versions.length > 1 ? h('div.row', h('span.small.muted', 'Перевод'), h('div.chips', versions.map((v, i) => h('button.chip', { type: 'button', 'aria-pressed': String(st.v === i), onclick: () => { st.v = i; refresh(); } }, v.label || `Версия ${i + 1}`)))) : null));
+    h('div.row.between', h('span.small.muted', 'Язык'), langSwitch(s, st.lang, k => { st.lang = k; refresh(); }))));
 
   if (s.arrangement || s.notes) {
     el.append(h('section.card',
@@ -135,9 +136,9 @@ export function renderSong(el, { id, key }, nav) {
 
   el.append(h('div.row',
     safeUrl(s.youtube) ? linkBtn(safeUrl(s.youtube), 'YouTube') : null,
-    h('button.btn.soft.sm', { type: 'button', onclick: () => copyText(lyricsOnly(versions[st.v].text), 'Текст скопирован') }, icon('copy', 16), 'Текст для проектора')));
+    h('button.btn.soft.sm', { type: 'button', onclick: () => copyText(lyricsOnly(texts[st.lang]), 'Текст скопирован') }, icon('copy', 16), 'Текст для проектора')));
 
-  const text = versions[st.v].text;
+  const text = texts[st.lang] || '';
   el.append(h('section.card',
     capo.on && st.mode !== 'lyrics' ? h('span.chip.ink', { style: { alignSelf: 'flex-start' } }, icon('capo', 14, 2), `Капо ${capo.fret} · формы ${capo.shape} · звучит ${target}`) : null,
     text.trim()
@@ -148,9 +149,10 @@ export function renderSong(el, { id, key }, nav) {
 export function openSongEditor(nav, existing) {
   const st = existing ? JSON.parse(JSON.stringify(existing)) : {
     title: '', author: '', key: 'G', playKey: '', bpm: '', meter: '4/4', youtube: '', arrangement: '', notes: '', cats: [],
-    versions: [{ label: 'Русский', text: '' }],
+    versions: [],
   };
-  if (!st.versions || !st.versions.length) st.versions = [{ label: 'Русский', text: '' }];
+  const texts = songTexts(st);
+  let edLang = texts.uk.trim() || !texts.ru.trim() ? 'uk' : 'ru';
   st.cats = st.cats || [];
   if (!st.playKey) st.playKey = st.key || '';
 
@@ -184,13 +186,13 @@ export function openSongEditor(nav, existing) {
       field('Партии', h('textarea#so-notes', { value: st.notes || '', placeholder: 'Вокальные партии, кто что играет, динамика', oninput: e => (st.notes = e.target.value) })),
       h('div.divider'),
       h('div', h('b', 'Текст и аккорды'), h('p.hint', 'Аккорд пишется в квадратных скобках перед слогом: [G]Слава [C]Тебе. Части песни — строкой «Куплет 1:» или «# Припев». Если вставили текст с аккордами над строками, нажмите «Преобразовать».')),
-      st.versions.map((v, i) => h('div.stack', { style: { gap: '8px' } },
-        h('div.row.nowrap',
-          h('input', { id: 'so-vl-' + i, 'aria-label': 'Название версии', value: v.label || '', placeholder: 'Язык или перевод', oninput: e => (v.label = e.target.value) }),
-          st.versions.length > 1 ? h('button.iconbtn', { type: 'button', 'aria-label': 'Удалить версию', onclick: () => { st.versions.splice(i, 1); ctx.paint(); } }, icon('trash', 18)) : null),
-        h('textarea.code', { id: 'so-vt-' + i, value: v.text || '', placeholder: '[G]Слава [D]Тебе, [Em]Господь…', spellcheck: 'false', oninput: e => (v.text = e.target.value) }),
-        h('button.btn.sm.ghost', { type: 'button', onclick: () => { v.text = convertChordsAbove(v.text); ctx.paint(); toast('Аккорды перенесены в строки'); } }, 'Преобразовать аккорды над строками'))),
-      h('button.btn.soft', { type: 'button', onclick: () => { st.versions.push({ label: 'Перевод', text: '' }); ctx.paint(); } }, icon('plus', 18), 'Добавить перевод'),
+      h('div.row.between',
+        h('div.seg-ctl.lang-sw', { role: 'group', 'aria-label': 'Язык текста' }, LANGS.map(l => h('button', {
+          type: 'button', 'aria-pressed': String(edLang === l.k), onclick: () => { edLang = l.k; ctx.paint(); },
+        }, l.label, texts[l.k].trim() ? ' ✓' : ''))),
+        h('span.small.muted', texts[edLang].trim() ? 'есть текст' : 'пусто — у песни будет неактивно')),
+      h('textarea.code', { id: 'so-vt-' + edLang, value: texts[edLang], placeholder: edLang === 'uk' ? '[G]Слава [D]Тобі, [Em]Господь…' : '[G]Слава [D]Тебе, [Em]Господь…', spellcheck: 'false', oninput: e => (texts[edLang] = e.target.value) }),
+      h('button.btn.sm.ghost', { type: 'button', onclick: () => { texts[edLang] = convertChordsAbove(texts[edLang]); ctx.paint(); toast('Аккорды перенесены в строки'); } }, 'Преобразовать аккорды над строками'),
       h('div.btn-row',
         existing ? h('button.btn.ghost', {
           type: 'button', 'aria-label': 'Удалить песню', onclick: () => confirmSheet('Удалить песню?', `«${existing.title}» исчезнет из базы. В прошлых служениях она перестанет отображаться.`, 'Удалить', async () => {
@@ -205,7 +207,7 @@ export function openSongEditor(nav, existing) {
               title: st.title.trim(), author: (st.author || '').trim(), key: st.key || '', playKey: st.playKey || st.key || '',
               meter: st.meter || '4/4', bpm: st.bpm ? Number(st.bpm) : '', youtube: (st.youtube || '').trim(),
               arrangement: st.arrangement || '', notes: st.notes || '', cats: st.cats.filter(id => S.categories.some(c => c.id === id)),
-              versions: st.versions.map(v => ({ label: (v.label || '').trim() || 'Текст', text: v.text || '' })),
+              versions: buildVersions(texts),
               createdAt: st.createdAt || Date.now(),
               capo: st.capo || null,
             };

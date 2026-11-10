@@ -546,3 +546,11 @@ button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
 .legend { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); vertical-align: middle; }
 .legend.ok { background: var(--ok); box-shadow: none; }
 .legend.no { background: var(--no); box-shadow: none; }
+
+/* ——— язык песни ——— */
+.lang-sw button:disabled { opacity: .35; cursor: default; }
+.lang-sw button { min-width: 56px; }
+
+/* ——— режим служения: скрытые настройки ——— */
+.ctl-hidden .psong-ctl { display: none; }
+.ctl-btn[aria-pressed="false"] { background: var(--ink); color: var(--bg); }

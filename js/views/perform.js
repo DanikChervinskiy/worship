@@ -7,6 +7,7 @@ import { renderSong, transposeKey, semitones, prefersFlats } from '../chords.js'
 import { fmt } from '../dates.js';
 import { defaultMode } from './songs.js';
 import { capoControl, capoState } from '../capo.js';
+import { songTexts, pickLang, langSwitch } from '../langs.js';
 import { warmupList } from './warmups.js';
 
 export function render(el, { id }, nav) {
@@ -14,7 +15,7 @@ export function render(el, { id }, nav) {
   if (!s) { el.append(bar('Режим служения', nav), h('div.list', empty('calendar', 'Служение не найдено'))); return; }
   document.body.classList.add('perform');
 
-  const prefs = Object.assign({ fs: 1, m: {}, k: {}, v: {} }, ls.get('wt.perf') || {});
+  const prefs = Object.assign({ fs: 1, m: {}, k: {}, v: {}, l: {}, hideCtl: false }, ls.get('wt.perf') || {});
   const save = () => ls.set('wt.perf', prefs);
   const M = me();
   const roles = rolesIn(s, M.memberId);
@@ -32,22 +33,36 @@ export function render(el, { id }, nav) {
     prefs.fs = next; save(); applyFs();
   };
 
+  // Скрыть / показать настройки песен (язык, слова/аккорды, тональность, каподастр) — у всех песен сразу.
+  const applyCtl = () => {
+    el.classList.toggle('ctl-hidden', !!prefs.hideCtl);
+    ctlBtn.setAttribute('aria-pressed', String(!prefs.hideCtl));
+    ctlBtn.setAttribute('aria-label', prefs.hideCtl ? 'Показать настройки песен' : 'Скрыть настройки песен');
+  };
+  const ctlBtn = h('button.iconbtn.ctl-btn', {
+    type: 'button', title: 'Настройки песен',
+    onclick: () => { prefs.hideCtl = !prefs.hideCtl; save(); applyCtl(); toast(prefs.hideCtl ? 'Настройки скрыты' : 'Настройки показаны'); },
+  }, icon('sliders', 20));
+
   el.append(h('header.pbar',
     h('button.iconbtn.flat', { type: 'button', 'aria-label': 'Выйти из режима служения', onclick: () => nav.back() }, icon('x')),
     h('div.pbar-t', h('b', svcTitle(s)), h('span', `${fmt.short(s.date)} · `, counter)),
     h('div.bar-a',
+      ctlBtn,
       h('button.iconbtn', { type: 'button', 'aria-label': 'Распевки', onclick: openWarmups }, icon('mic', 20)),
       h('button.iconbtn', { type: 'button', 'aria-label': 'Мельче', onclick: () => setFs(-0.1) }, h('span', { style: { fontSize: '13px', fontWeight: '700' } }, 'A−')),
       h('button.iconbtn', { type: 'button', 'aria-label': 'Крупнее', onclick: () => setFs(0.1) }, h('span', { style: { fontSize: '17px', fontWeight: '700' } }, 'A+')))));
 
+  applyCtl();
   if (!items.length) { el.append(h('div.list', empty('music', 'В служении нет песен'))); return; }
 
   const sections = items.map((x, i) => {
     const key = `${s.id}:${i}`;
     const sec = h('section.psong', { id: 'ps-' + i });
     const paint = () => {
-      const versions = (x.song.versions && x.song.versions.length) ? x.song.versions : [{ label: 'Текст', text: '' }];
-      const vi = Math.min(prefs.v[key] || 0, versions.length - 1);
+      const texts = songTexts(x.song);
+      const lang = pickLang(x.song, prefs.l[key]);
+      const text = texts[lang] || '';
       const baseKey = x.key || x.song.playKey || x.song.key;
       const targetKey = prefs.k[key] || baseKey;
       const steps = semitones(x.song.key, targetKey);
@@ -66,13 +81,10 @@ export function render(el, { id }, nav) {
             h('b', targetKey || '—'),
             h('button', { type: 'button', 'aria-label': 'Выше', onclick: () => shiftKey(1) }, icon('plus', 16))),
           targetKey ? capoControl(x.song.id, targetKey, paint) : null,
-          versions.length > 1 ? h('select', {
-            'aria-label': 'Перевод', style: { width: 'auto', minHeight: '40px', fontSize: '14px' }, value: String(vi),
-            onchange: e => { prefs.v[key] = Number(e.target.value); save(); paint(); },
-          }, versions.map((v, k) => h('option', { value: String(k) }, v.label || `Версия ${k + 1}`))) : null),
+          langSwitch(x.song, lang, k => { prefs.l[key] = k; save(); paint(); })),
         x.song.arrangement ? h('div.arr', h('span.eyebrow', 'Порядок'), h('span.arr-v', x.song.arrangement)) : null,
-        versions[vi].text.trim()
-          ? renderSong(versions[vi].text, { mode, steps: steps - capo.fret * (capo.on ? 1 : 0), flats: prefersFlats(capo.on ? capo.shape : targetKey) })
+        text.trim()
+          ? renderSong(text, { mode, steps: steps - capo.fret * (capo.on ? 1 : 0), flats: prefersFlats(capo.on ? capo.shape : targetKey) })
           : h('p.muted', 'Текст ещё не добавлен.'));
     };
     paint();
@@ -151,5 +163,6 @@ export function render(el, { id }, nav) {
     document.body.classList.remove('perform');
     el.style.removeProperty('--fs');
     el.style.removeProperty('--fw');
+    el.classList.remove('ctl-hidden');
   };
 }

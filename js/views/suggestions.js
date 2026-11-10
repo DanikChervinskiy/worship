@@ -50,7 +50,7 @@ export function render(el, p, nav) {
         s.status !== 'learning' && s.status !== 'added' ? h('button.btn.sm.soft', { type: 'button', onclick: () => run(() => put('suggestions', { ...s, status: 'learning' }, s.id), 'Отмечено: учим') }, 'Учим') : null,
         s.status !== 'added' ? h('button.btn.sm.soft', {
           type: 'button', onclick: () => run(async () => {
-            const sid = await put('songs', { title: s.title, author: '', key: '', meter: '4/4', bpm: '', youtube: safeUrl(s.link), arrangement: '', notes: '', versions: [{ label: 'Русский', text: '' }], createdAt: Date.now() });
+            const sid = await put('songs', { title: s.title, author: '', key: '', meter: '4/4', bpm: '', youtube: safeUrl(s.link), arrangement: '', notes: '', versions: [], createdAt: Date.now() });
             await put('suggestions', { ...s, status: 'added', songId: sid }, s.id);
           }, 'Песня добавлена в базу — допишите слова и аккорды'),
         }, 'В базу') : null,
