@@ -1,6 +1,6 @@
 // Сервис-воркер: приложение открывается без интернета, а push-уведомления приходят, даже когда оно закрыто.
 // После изменения файлов приложения увеличьте VERSION — телефоны подтянут новую версию.
-const VERSION = 'v24';
+const VERSION = 'v25';
 const SHELL = `shell-${VERSION}`;
 const RUNTIME = 'runtime-v1';
 
@@ -14,20 +14,34 @@ const FILES = [
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
 ];
 
-/* ——— push (Firebase Cloud Messaging) ——— */
-try {
-  importScripts('./firebase-config.js');
-  if (self.FIREBASE_CONFIG && self.FIREBASE_CONFIG.apiKey) {
-    importScripts(
-      'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
-      'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
-    firebase.initializeApp(self.FIREBASE_CONFIG);
-    // Уведомления с заголовком и текстом показываются автоматически.
-    firebase.messaging();
-  }
-} catch (e) { /* без сети или без настроек — офлайн-режим всё равно работает */ }
+/* ——— push ——— */
+// Уведомление показываем сами и ВСЕГДА — даже когда приложение открыто.
+// Раньше этим занималась библиотека Firebase: при открытом приложении она молча передавала сообщение странице,
+// и в шторке ничего не появлялось. А iPhone, получив несколько «невидимых» push, отключает подписку.
+self.addEventListener('push', event => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = { notification: { body: event.data && event.data.text() } }; }
+  const n = d.notification || {};
+  const data = d.data || {};
+  const title = n.title || data.title || 'Living Spring';
+  const link = (d.fcmOptions && d.fcmOptions.link) || (d.fcm_options && d.fcm_options.link) || data.link || './';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: n.body || data.body || '',
+    icon: n.icon || './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag: n.tag || undefined,
+    data: { link },
+  }));
+});
 
-// Нажатие на уведомление открывает приложение (ссылку задаёт скрипт рассылки через fcmOptions.link).
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || './';
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) if ('focus' in c) return c.focus();
+    return clients.openWindow(link);
+  }));
+});
 
 /* ——— офлайн ——— */
 self.addEventListener('install', event => {
