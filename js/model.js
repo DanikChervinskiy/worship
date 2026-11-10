@@ -14,6 +14,9 @@ export const ROLES = [
 ];
 export const ROLE = Object.fromEntries(ROLES.map(r => [r.k, r]));
 export const roleLabel = k => (ROLE[k] ? ROLE[k].label : k === 'all' ? 'Все' : k);
+// Роли, для которых у песни можно добавить ссылку на партию (YouTube).
+export const PART_ROLES = ['vocal', 'keys', 'guitar', 'eguitar', 'bass', 'drums'];
+export const songParts = song => Object.entries((song && song.parts) || {}).filter(([k, u]) => PART_ROLES.includes(k) && u);
 export const MUSICIANS = new Set(['keys', 'guitar', 'eguitar', 'bass', 'drums']);
 export const OPERATORS = new Set(['sound', 'media']);
 

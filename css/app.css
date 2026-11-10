@@ -554,3 +554,12 @@ button.chip.cat[aria-pressed="true"] .cat-dot { background: #fff; }
 /* ——— режим служения: скрытые настройки ——— */
 .ctl-hidden .psong-ctl { display: none; }
 .ctl-btn[aria-pressed="false"] { background: var(--ink); color: var(--bg); }
+
+/* Партии песни (ссылки на YouTube) */
+.parts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.part { display: inline-flex; align-items: center; gap: 6px; padding: 9px 13px; border-radius: 999px; background: var(--surface-2); color: var(--ink); font-weight: 600; text-decoration: none; }
+.part.mine { background: var(--ink); color: var(--bg); }
+.part small { font-weight: 500; opacity: .7; }
+.part-row { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 10px; }
+.part-k { font-size: 14px; font-weight: 600; }
+a.part-link { color: inherit; text-decoration: none; text-align: left; }

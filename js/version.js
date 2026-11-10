@@ -1,2 +1,2 @@
 // Номер версии приложения — виден в шапке профиля. Меняется с каждым обновлением (см. CHANGELOG.md).
-export const APP_VERSION = 'v1.24';
+export const APP_VERSION = 'v1.25';

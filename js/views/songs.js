@@ -2,7 +2,7 @@
 // режимы показа, переводы, когда играли), редактор.
 import { S, put, del } from '../store.js';
 import { h, icon, run, sheet, field, seg, empty, bar, toast, confirmSheet, copyText, linkBtn, safeUrl } from '../ui.js';
-import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory, can } from '../model.js';
+import { me, songsSorted, song, MUSICIANS, categoriesSorted, songHistory, PART_ROLES, songParts, roleLabel, can } from '../model.js';
 import { plural, fmt, daysBetween, today } from '../dates.js';
 import { renderSong as renderText, transposeKey, semitones, prefersFlats, ALL_KEYS, keyChoices, lyricsOnly, convertChordsAbove } from '../chords.js';
 import { capoControl, capoState } from '../capo.js';
@@ -128,10 +128,22 @@ export function renderSong(el, { id, key }, nav) {
     target ? capoControl(s.id, target, refresh) : null,
     h('div.row.between', h('span.small.muted', 'Язык'), langSwitch(s, st.lang, k => { st.lang = k; refresh(); }))));
 
+  const parts = songParts(s).filter(([, u]) => safeUrl(u));
+  if (parts.length) {
+    const myRoles = me().roles;
+    el.append(h('section.card',
+      h('p.eyebrow', 'Партии'),
+      h('div.parts', PART_ROLES.filter(k => parts.some(([r]) => r === k)).map(k => {
+        const u = safeUrl(s.parts[k]);
+        return h('a.part' + (myRoles.includes(k) ? '.mine' : ''), { href: u, target: '_blank', rel: 'noopener noreferrer' },
+          icon('play', 16), h('span', roleLabel(k)), myRoles.includes(k) ? h('small', 'ваша') : null);
+      }))));
+  }
+
   if (s.arrangement || s.notes) {
     el.append(h('section.card',
       s.arrangement ? h('div', h('p.eyebrow', 'Порядок'), h('p.mono', { style: { marginTop: '4px' } }, s.arrangement)) : null,
-      s.notes ? h('div', h('p.eyebrow', 'Партии'), h('p.pre', { style: { marginTop: '4px' } }, s.notes)) : null));
+      s.notes ? h('div', h('p.eyebrow', 'Заметки'), h('p.pre', { style: { marginTop: '4px' } }, s.notes)) : null));
   }
 
   el.append(h('div.row',
@@ -154,6 +166,7 @@ export function openSongEditor(nav, existing) {
   const texts = songTexts(st);
   let edLang = texts.uk.trim() || !texts.ru.trim() ? 'uk' : 'ru';
   st.cats = st.cats || [];
+  st.parts = { ...(st.parts || {}) };
   if (!st.playKey) st.playKey = st.key || '';
 
   sheet(existing ? 'Изменить песню' : 'Новая песня', (b, ctx) => {
@@ -183,7 +196,12 @@ export function openSongEditor(nav, existing) {
           }, icon('plus', 14, 2.2), 'Новая'))),
       field('Ссылка на YouTube', h('input#so-yt', { type: 'url', value: st.youtube || '', placeholder: 'https://youtube.com/…', oninput: e => (st.youtube = e.target.value) })),
       field('Порядок частей', h('input#so-arr', { value: st.arrangement || '', placeholder: 'К1 · П · К2 · П · Б · П', oninput: e => (st.arrangement = e.target.value) })),
-      field('Партии', h('textarea#so-notes', { value: st.notes || '', placeholder: 'Вокальные партии, кто что играет, динамика', oninput: e => (st.notes = e.target.value) })),
+      h('div.fld', h('span', 'Партии — ссылки на YouTube'),
+        h('div.stack', { style: { gap: '8px' } }, PART_ROLES.map(k => h('label.part-row',
+          h('span.part-k', roleLabel(k)),
+          h('input', { id: 'so-part-' + k, type: 'url', inputmode: 'url', value: st.parts[k] || '', placeholder: 'https://youtu.be/…', oninput: e => (st.parts[k] = e.target.value) })))),
+        h('small.hint', 'Музыкант увидит ссылку на свою партию на главном экране, когда песня стоит в его служении.')),
+      field('Заметки', h('textarea#so-notes', { value: st.notes || '', placeholder: 'Динамика, кто начинает, особенности', oninput: e => (st.notes = e.target.value) })),
       h('div.divider'),
       h('div', h('b', 'Текст и аккорды'), h('p.hint', 'Аккорд пишется в квадратных скобках перед слогом: [G]Слава [C]Тебе. Части песни — строкой «Куплет 1:» или «# Припев». Если вставили текст с аккордами над строками, нажмите «Преобразовать».')),
       h('div.row.between',
@@ -206,7 +224,8 @@ export function openSongEditor(nav, existing) {
             const doc = {
               title: st.title.trim(), author: (st.author || '').trim(), key: st.key || '', playKey: st.playKey || st.key || '',
               meter: st.meter || '4/4', bpm: st.bpm ? Number(st.bpm) : '', youtube: (st.youtube || '').trim(),
-              arrangement: st.arrangement || '', notes: st.notes || '', cats: st.cats.filter(id => S.categories.some(c => c.id === id)),
+              arrangement: st.arrangement || '', notes: st.notes || '',
+              parts: Object.fromEntries(PART_ROLES.map(k => [k, (st.parts[k] || '').trim()]).filter(([, u]) => u)), cats: st.cats.filter(id => S.categories.some(c => c.id === id)),
               versions: buildVersions(texts),
               createdAt: st.createdAt || Date.now(),
               capo: st.capo || null,

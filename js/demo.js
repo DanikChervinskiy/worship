@@ -93,6 +93,7 @@ export function buildDemo() {
   songs[1].cats = ['demo-cat-hymn'];
   songs[2].cats = ['demo-cat-hymn', 'demo-cat-worship'];
   songs[2].playKey = 'Eb';
+  songs[0].parts = { drums: 'https://www.youtube.com/', keys: 'https://www.youtube.com/', vocal: 'https://www.youtube.com/' };
 
   const drummers = ['demo-alina', 'demo-katya', 'demo-vitya'];
   const services = [];

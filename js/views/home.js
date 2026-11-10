@@ -1,9 +1,9 @@
 // Главная: ближайшее служение, мои отметки, задачи, лента уведомлений.
 import { S, ls, put, putMine, loadDemo } from '../store.js';
-import { h, icon, run, sheet, field, avatar, initials, empty, bar, toast } from '../ui.js';
+import { h, icon, run, sheet, field, avatar, initials, empty, bar, toast, safeUrl } from '../ui.js';
 import {
   me, upcoming, onTeam, rolesIn, roleLabel, svcSongs, feedFor, myAvail, setAvail, svcTitle,
-  membersSorted, member, service, OPERATORS, recentAvail, notify, memberOfUid, lessonsOnly, can } from '../model.js';
+  membersSorted, member, service, OPERATORS, PART_ROLES, recentAvail, notify, memberOfUid, lessonsOnly, can } from '../model.js';
 import { fmt, relDay, daysBetween, today, addDays, plural } from '../dates.js';
 import { openServiceEditor } from './schedule.js';
 import { openProjector } from '../projector.js';
@@ -67,6 +67,28 @@ export function render(el, p, nav) {
     if (next.length) el.append(h('section.card',
       h('div.card-h', h('h2.h2', 'Сможете служить?'), h('button.small.muted', { type: 'button', onclick: () => nav.go('schedule') }, 'Весь месяц')),
       h('div.stack', next.map(s => availRow(s)))));
+  }
+
+  // Повторить свои партии: песни ближайших служений, где я играю/пою и есть ссылка на мою партию
+  if (M.memberId) {
+    const soon = ups.filter(s => s.published && s.date <= addDays(today(), 14));
+    const groups = soon.map(svc => {
+      const roles = rolesIn(svc, M.memberId).filter(r => PART_ROLES.includes(r));
+      const items = [];
+      svcSongs(svc).forEach(x => roles.forEach(r => {
+        const u = safeUrl((x.song.parts || {})[r]);
+        if (u) items.push({ song: x.song, role: r, url: u, key: x.key });
+      }));
+      return { svc, items };
+    }).filter(g => g.items.length);
+    if (groups.length) el.append(h('section.card',
+      h('div.card-h', h('div', h('h2.h2', 'Повторите партии'), h('p.small.muted', 'Ваши партии к ближайшим служениям')), icon('play', 22)),
+      groups.map(g => h('div.stack', { style: { gap: '6px' } },
+        h('p.eyebrow', `${relDay(g.svc.date)} · ${svcTitle(g.svc)}`),
+        g.items.map(it => h('a.row.nowrap.part-link', { href: it.url, target: '_blank', rel: 'noopener noreferrer' },
+          h('span.li-ic', icon('play', 18)),
+          h('div.grow', h('div.ellip', h('b', it.song.title)), h('div.small.muted', [roleLabel(it.role), it.key ? 'в ' + it.key : ''].filter(Boolean).join(' · '))),
+          icon('ext', 16)))))));
   }
 
   // Операторам — тексты на проектор
